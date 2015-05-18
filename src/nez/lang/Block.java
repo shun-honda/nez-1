@@ -15,22 +15,25 @@ public class Block extends Unary {
 		return "block";
 	}
 	@Override
-	Expression dupUnary(Expression e) {
-		return (this.inner != e) ? Factory.newBlock(this.s, e) : this;
+	public Expression reshape(Manipulator m) {
+		return m.reshapeBlock(this);
 	}
+
+	@Override
+	public boolean isConsumed(Stacker stacker) {
+		return this.inner.isConsumed(stacker);
+	}
+
 	@Override
 	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
 		return this.inner.checkAlwaysConsumed(checker, startNonTerminal, stack);
 	}
+	
 	@Override
 	public int inferTypestate(UMap<String> visited) {
 		return this.inner.inferTypestate(visited);
 	}
-	@Override
-	public Expression checkTypestate(GrammarChecker checker, Typestate c) {
-		this.inner = this.inner.checkTypestate(checker, c);
-		return this;
-	}
+
 	@Override
 	public short acceptByte(int ch, int option) {
 		return this.inner.acceptByte(ch, option);

@@ -17,9 +17,19 @@ public class Not extends Unary {
 		return "!";
 	}
 	@Override
-	public String getInterningKey() { 
+	public String key() { 
 		return "!";
 	}
+	@Override
+	public Expression reshape(Manipulator m) {
+		return m.reshapeNot(this);
+	}
+
+	@Override
+	public boolean isConsumed(Stacker stacker) {
+		return false;
+	}
+
 	@Override
 	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
 //		if(checker != null) {
@@ -30,14 +40,6 @@ public class Not extends Unary {
 	@Override
 	public int inferTypestate(UMap<String> visited) {
 		return Typestate.BooleanType;
-	}
-	@Override
-	public Expression checkTypestate(GrammarChecker checker, Typestate c) {
-		int t = this.inner.inferTypestate(null);
-		if(t == Typestate.ObjectType || t == Typestate.OperationType) {
-			this.inner = this.inner.removeASTOperator(Expression.CreateNonTerminal);
-		}
-		return this;
 	}
 	@Override
 	public short acceptByte(int ch, int option) {
@@ -70,11 +72,6 @@ public class Not extends Unary {
 			return Prediction.Reject;
 		}
 		return Prediction.Unconsumed;
-	}
-
-	@Override
-	Expression dupUnary(Expression e) {
-		return (this.inner != e) ? Factory.newNot(this.s, e) : this;
 	}
 
 	@Override

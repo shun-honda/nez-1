@@ -14,16 +14,24 @@ public class IsIndent extends Terminal {
 		return "indent";
 	}
 	@Override
-	public String getInterningKey() {
+	public String key() {
 		return "indent";
 	}
+	
+	@Override
+	public Expression reshape(Manipulator m) {
+		return m.reshapeIsIndent(this);
+	}
+	
+	@Override
+	public boolean isConsumed(Stacker stacker) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 	@Override
 	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
 		return false;
-	}
-	@Override
-	public Expression checkTypestate(GrammarChecker checker, Typestate c) {
-		return this;
 	}
 	@Override
 	public short acceptByte(int ch, int option) {

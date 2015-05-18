@@ -10,18 +10,27 @@ public class Match extends Unary {
 	Match(SourcePosition s, Expression inner) {
 		super(s, inner);
 	}
+	
 	@Override
 	public String getPredicate() { 
 		return "~";
 	}
+	
 	@Override
-	public String getInterningKey() { 
+	public String key() { 
 		return "~";
-	}	
-	@Override
-	Expression dupUnary(Expression e) {
-		return (this.inner != e) ? Factory.newMatch(this.s, e) : this;
 	}
+	
+	@Override
+	public Expression reshape(Manipulator m) {
+		return m.reshapeMatch(this);
+	}
+
+	@Override
+	public boolean isConsumed(Stacker stacker) {
+		return this.inner.isConsumed(stacker);
+	}
+
 	@Override
 	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
 		return this.inner.checkAlwaysConsumed(checker, startNonTerminal, stack);
@@ -29,10 +38,6 @@ public class Match extends Unary {
 	@Override
 	public int inferTypestate(UMap<String> visited) {
 		return Typestate.BooleanType;
-	}
-	@Override
-	public Expression checkTypestate(GrammarChecker checker, Typestate c) {
-		return this.inner.removeASTOperator(Expression.CreateNonTerminal);
 	}
 	@Override
 	public short acceptByte(int ch, int option) {

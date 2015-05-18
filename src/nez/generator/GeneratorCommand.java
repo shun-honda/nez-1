@@ -1,4 +1,4 @@
-package nez.cc;
+package nez.generator;
 
 import nez.lang.Grammar;
 import nez.main.Command;
@@ -24,7 +24,7 @@ public class GeneratorCommand extends Command {
 //				inst.id = -9999;
 //			}
 //		}
-		JavaParserGenerator cc = new JavaParserGenerator(null);
+		ParserGenerator cc = new ParserGenerator(null);
 		//cc.generate(p);
 	}
 

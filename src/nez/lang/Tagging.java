@@ -20,12 +20,16 @@ public class Tagging extends ASTOperation {
 		return "tag " + StringUtils.quoteString('"', tag.getName(), '"');
 	}
 	@Override
-	public String getInterningKey() {
+	public String key() {
 		return "#" + this.tag.getName();
 	}
 	@Override
-	public Expression checkTypestate(GrammarChecker checker, Typestate c) {
-		return this.checkTypestate(checker, c, "#" + tag.getName());
+	public boolean isConsumed(Stacker stacker) {
+		return false;
+	}
+	@Override
+	public Expression reshape(Manipulator m) {
+		return m.reshapeTagging(this);
 	}
 //	@Override
 //	public boolean match(SourceContext context) {

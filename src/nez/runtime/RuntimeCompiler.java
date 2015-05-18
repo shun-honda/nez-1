@@ -19,6 +19,7 @@ import nez.lang.Grammar;
 import nez.lang.IsIndent;
 import nez.lang.IsSymbol;
 import nez.lang.Link;
+import nez.lang.Manipulator;
 import nez.lang.New;
 import nez.lang.NonTerminal;
 import nez.lang.Not;
@@ -90,7 +91,7 @@ public class RuntimeCompiler {
 			String un = ((NonTerminal) e).getUniqueName();
 			if(visitedMap.get(un) == null) {
 				visitedMap.put(un, un);
-				return isContextSensitive(((NonTerminal) e).getRule().getExpression());
+				return isContextSensitive(((NonTerminal) e).getProduction().getExpression());
 			}
 			return false;
 		}
@@ -137,7 +138,7 @@ public class RuntimeCompiler {
 				continue;
 			}
 			if(!UFlag.is(option, Grammar.ASTConstruction)) {
-				e = e.removeASTOperator(Expression.RemoveOnly);
+				e = e.reshape(Manipulator.RemoveAST);
 			}
 			CodeBlock block = new CodeBlock();
 			block.head = encodeExpression(e, new IRet(r));
@@ -654,62 +655,62 @@ public class RuntimeCompiler {
 		return dispatch;
 	}
 	
-	private final boolean checkStartingTerminal(Expression e, int ch) {
-		e = Factory.resolveNonTerminal(e);
-		if(e instanceof ByteChar) {
-			return (((ByteChar) e).byteChar == ch);
-		}
-		if(e instanceof Sequence) {
-			return checkStartingTerminal(e.get(0), ch);
-		}
-		if(e instanceof Choice) {
-			for(Expression p: e) {
-				if(!checkStartingTerminal(p, ch)) {
-					return false;
-				}
-			}
-			return true;
-		}
-		return false;
-	}
-
-	private final Expression trimStartingTerminal(Expression e, int ch) {
-		if(e instanceof Sequence) {
-			UList<Expression> l = new UList<Expression>(new Expression[e.size()-1]);
-			for(int i = 1; i < e.size(); i++) {
-				l.add(e.get(i));
-			}
-			return Factory.newSequence(null, l);
-		}
-		if(e instanceof Choice) {
-			UList<Expression> l = new UList<Expression>(new Expression[e.size()]);
-			for(Expression p: e) {
-				Factory.addChoice(l, p);
-			}
-			return Factory.newChoice(null, l);
-		}
-		assert(e instanceof ByteChar);
-		return Factory.newEmpty(null);
-	}
-
-	private final Expression trimStartingTerminal(Expression e) {
-		if(e instanceof Sequence) {
-			UList<Expression> l = new UList<Expression>(new Expression[e.size()-1]);
-			for(int i = 1; i < e.size(); i++) {
-				l.add(e.get(i));
-			}
-			return Factory.newSequence(null, l);
-		}
-		if(e instanceof Choice) {
-			UList<Expression> l = new UList<Expression>(new Expression[e.size()]);
-			for(Expression p: e) {
-				Factory.addChoice(l, p);
-			}
-			return Factory.newChoice(null, l);
-		}
-		assert(e instanceof ByteChar);
-		return Factory.newEmpty(null);
-	}
+//	private final boolean checkStartingTerminal(Expression e, int ch) {
+//		e = Factory.resolveNonTerminal(e);
+//		if(e instanceof ByteChar) {
+//			return (((ByteChar) e).byteChar == ch);
+//		}
+//		if(e instanceof Sequence) {
+//			return checkStartingTerminal(e.get(0), ch);
+//		}
+//		if(e instanceof Choice) {
+//			for(Expression p: e) {
+//				if(!checkStartingTerminal(p, ch)) {
+//					return false;
+//				}
+//			}
+//			return true;
+//		}
+//		return false;
+//	}
+//
+//	private final Expression trimStartingTerminal(Expression e, int ch) {
+//		if(e instanceof Sequence) {
+//			UList<Expression> l = new UList<Expression>(new Expression[e.size()-1]);
+//			for(int i = 1; i < e.size(); i++) {
+//				l.add(e.get(i));
+//			}
+//			return Factory.newSequence(null, l);
+//		}
+//		if(e instanceof Choice) {
+//			UList<Expression> l = new UList<Expression>(new Expression[e.size()]);
+//			for(Expression p: e) {
+//				Factory.addChoice(l, p);
+//			}
+//			return Factory.newChoice(null, l);
+//		}
+//		assert(e instanceof ByteChar);
+//		return Factory.newEmpty(null);
+//	}
+//
+//	private final Expression trimStartingTerminal(Expression e) {
+//		if(e instanceof Sequence) {
+//			UList<Expression> l = new UList<Expression>(new Expression[e.size()-1]);
+//			for(int i = 1; i < e.size(); i++) {
+//				l.add(e.get(i));
+//			}
+//			return Factory.newSequence(null, l);
+//		}
+//		if(e instanceof Choice) {
+//			UList<Expression> l = new UList<Expression>(new Expression[e.size()]);
+//			for(Expression p: e) {
+//				Factory.addChoice(l, p);
+//			}
+//			return Factory.newChoice(null, l);
+//		}
+//		assert(e instanceof ByteChar);
+//		return Factory.newEmpty(null);
+//	}
 
 	private final Expression trimCommonPrefix(Expression e, Expression e2) {
 		int min = sizeAsSequence(e) < sizeAsSequence(e2) ? sizeAsSequence(e) : sizeAsSequence(e2);
@@ -804,6 +805,7 @@ public class RuntimeCompiler {
 	}
 
 	public final Instruction encodeUnoptimizedChoice(Choice p, Instruction next) {
+		//System.out.println("@@@@@" + p);
 		Instruction nextChoice = encodeExpression(p.get(p.size()-1), next);
 		for(int i = p.size() -2; i >= 0; i--) {
 			Expression e = p.get(i);
@@ -813,7 +815,7 @@ public class RuntimeCompiler {
 	}
 
 	public final Instruction encodeNonTerminal(NonTerminal p, Instruction next) {
-		Production r = p.getRule();
+		Production r = p.getProduction();
 		Expression pp = p.optimize(option);
 		if(pp instanceof ByteChar || pp instanceof ByteMap || pp instanceof AnyChar) {
 			Verbose.noticeOptimize("Inlining", p, pp);
@@ -829,7 +831,7 @@ public class RuntimeCompiler {
 				MemoPoint m = this.issueMemoPoint(r.getUniqueName(), ref);
 				if(m != null) {
 					if(UFlag.is(option, Grammar.Tracing)) {
-						IMonitoredSwitch monitor = new IMonitoredSwitch(p, new ICallPush(p.getRule(), next));
+						IMonitoredSwitch monitor = new IMonitoredSwitch(p, new ICallPush(p.getProduction(), next));
 						Instruction inside = new ICallPush(r, newMemoize(p, monitor, m, next));
 						monitor.setActivatedNext(newLookup(p, monitor, m, inside, next, newMemoizeFail(p, monitor, m)));
 						return monitor;

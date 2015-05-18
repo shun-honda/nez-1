@@ -8,18 +8,33 @@ import nez.runtime.RuntimeCompiler;
 import nez.util.UList;
 import nez.util.UMap;
 
-@Deprecated
-public class WithFlag extends Unary {
+public class OnFlag extends Unary {
+	boolean predicate;
 	String flagName;
-	WithFlag(SourcePosition s, String flagName, Expression inner) {
+	OnFlag(SourcePosition s, boolean predicate, String flagName, Expression inner) {
 		super(s, inner);
+		if(flagName.startsWith("!")) {
+			predicate = false;
+			flagName = flagName.substring(1);
+		}
+		this.predicate = predicate;
 		this.flagName = flagName;
 		this.optimized = inner.optimized;
 	}
+	
+	public final String getFlagName() {
+		return this.flagName;
+	}
+
 	@Override
 	public String getPredicate() {
-		return "with " + this.flagName;
+		return predicate ? "on " + this.flagName : "on !" + this.flagName;
 	}
+	@Override
+	public Expression reshape(Manipulator m) {
+		return m.reshapeOnFlag(this);
+	}
+
 	@Override
 	public boolean isConsumed(Stacker stacker) {
 		return this.inner.isConsumed(stacker);
@@ -33,6 +48,7 @@ public class WithFlag extends Unary {
 	public int inferTypestate(UMap<String> visited) {
 		return this.inner.inferTypestate(visited);
 	}
+
 	@Override
 	public short acceptByte(int ch, int option) {
 		return this.inner.acceptByte(ch, option);
@@ -51,11 +67,6 @@ public class WithFlag extends Unary {
 	@Override
 	protected void examplfy(GEP gep, StringBuilder sb, int p) {
 		this.inner.examplfy(gep, sb, p);
-	}
-	@Override
-	public Expression reshape(Manipulator m) {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 	

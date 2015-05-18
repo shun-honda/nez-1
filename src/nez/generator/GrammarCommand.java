@@ -1,4 +1,4 @@
-package nez.cc;
+package nez.generator;
 
 import java.lang.reflect.Constructor;
 import java.util.TreeMap;
@@ -19,8 +19,8 @@ public class GrammarCommand extends Command {
 	@Override
 	public void exec(CommandConfigure config) {
 		NameSpace peg = config.getNameSpace(false);
-		GrammarGenerator gen = loadGenerator(config.getOutputFileName());
-		gen.generate(peg);
+		NezGenerator gen = loadGenerator(config.getOutputFileName());
+//		gen.generate(peg);
 	}
 	
 	static private TreeMap<String, Class<?>> classMap = new TreeMap<String, Class<?>>();
@@ -40,9 +40,9 @@ public class GrammarCommand extends Command {
 		regist("lpeg",  "nez.cc.LPegGrammarGenerator");
 	}
 	
-	final GrammarGenerator loadGenerator(String output) {
+	final NezGenerator loadGenerator(String output) {
 		if(output != null) {
-			GrammarGenerator gen = null;
+			NezGenerator gen = null;
 			String type = output;
 			String fileName = null; // stdout
 			int loc = output.lastIndexOf('.');
@@ -61,7 +61,7 @@ public class GrammarCommand extends Command {
 			}
 			try {
 				Constructor<?> ct = c.getConstructor(String.class);
-				gen = (GrammarGenerator)ct.newInstance(fileName);
+				gen = (NezGenerator)ct.newInstance(fileName);
 			}
 			catch(Exception e) {
 				ConsoleUtils.exit(1, "unable to load: " + output + " due to " + e);
@@ -78,7 +78,7 @@ public class GrammarCommand extends Command {
 				String dummy = null;
 				Class<?> c = this.classMap.get(n);
 				Constructor<?> ct = c.getConstructor(String.class);
-				GrammarGenerator g = (GrammarGenerator)ct.newInstance(dummy);
+				NezGenerator g = (NezGenerator)ct.newInstance(dummy);
 				String s = String.format("%8s - %s", n, g.getDesc());
 				ConsoleUtils.println(s);
 			}

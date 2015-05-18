@@ -18,9 +18,25 @@ public class Choice extends SequentialExpression {
 		return "/";
 	}
 	@Override
-	public String getInterningKey() {
+	public String key() {
 		return "/";
 	}
+	@Override
+	public Expression reshape(Manipulator m) {
+		return m.reshapeChoice(this);
+	}
+	
+	@Override
+	public boolean isConsumed(Stacker stacker) {
+		boolean afterAll = true;
+		for(Expression e: this) {
+			if(!e.isConsumed(stacker)) {
+				afterAll = false;
+			}
+		}
+		return afterAll;
+	}
+
 	@Override
 	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
 		boolean afterAll = true;
@@ -40,32 +56,6 @@ public class Choice extends SequentialExpression {
 			return this.get(0).inferTypestate(visited);
 		}
 		return Typestate.BooleanType;
-	}
-	@Override
-	public Expression checkTypestate(GrammarChecker checker, Typestate c) {
-		int required = c.required;
-		UList<Expression> l = newList();
-		for(Expression e : this) {
-			c.required = required;
-			Factory.addChoice(l, e.checkTypestate(checker, c));
-		}
-		return Factory.newChoice(this.s, l);
-	}
-	@Override
-	public Expression removeASTOperator(boolean newNonTerminal) {
-		UList<Expression> l = newList();
-		for(Expression e : this) {
-			Factory.addChoice(l, e.removeASTOperator(newNonTerminal));
-		}
-		return Factory.newChoice(this.s, l);
-	}
-	@Override
-	public Expression removeFlag(TreeMap<String, String> undefedFlags) {
-		UList<Expression> l = new UList<Expression>(new Expression[this.size()]);
-		for(Expression e : this) {
-			Factory.addChoice(l, e.removeFlag(undefedFlags));
-		}
-		return Factory.newChoice(this.s, l);
 	}
 	@Override
 	public short acceptByte(int ch, int option) {

@@ -15,12 +15,17 @@ public class Capture extends ASTOperation {
 		return "}";
 	}
 	@Override
-	public String getInterningKey() {
+	public String key() {
 		return shift == 0 ? "}" : "}["+shift+"]";
 	}
 	@Override
-	public Expression checkTypestate(GrammarChecker checker, Typestate c) {
-		return this.checkTypestate(checker, c, "}");
+	public Expression reshape(Manipulator m) {
+		return m.reshapeCapture(this);
+	}
+
+	@Override
+	public boolean isConsumed(Stacker stacker) {
+		return false;
 	}
 	
 	@Override

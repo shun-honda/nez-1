@@ -14,6 +14,17 @@ public class And extends Unary {
 	public String getPredicate() {
 		return "&";
 	}
+
+	@Override
+	public Expression reshape(Manipulator m) {
+		return m.reshapeAnd(this);
+	}
+
+	@Override
+	public boolean isConsumed(Stacker stacker) {
+		return false;
+	}
+
 	@Override
 	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
 		return false;
@@ -26,18 +37,6 @@ public class And extends Unary {
 		}
 		return t;
 	}
-	@Override
-	public Expression checkTypestate(GrammarChecker checker, Typestate c) {
-		if(c.required == Typestate.ObjectType) {
-			c.required = Typestate.BooleanType;
-			this.inner = this.inner.checkTypestate(checker, c);
-			c.required = Typestate.ObjectType;
-		}
-		else {
-			this.inner = this.inner.checkTypestate(checker, c);
-		}
-		return this;
-	}
 
 	@Override
 	public short acceptByte(int ch, int option) {
@@ -46,11 +45,6 @@ public class And extends Unary {
 			return Prediction.Unconsumed;
 		}
 		return r;
-	}
-
-	@Override
-	Expression dupUnary(Expression e) {
-		return (this.inner != e) ? Factory.newAnd(this.s, e) : this;
 	}
 	
 	@Override

@@ -12,7 +12,7 @@ public class Factory {
 	static Expression intern(Expression e) {
 		if(e.internId == 0) {
 			StringBuilder sb = new StringBuilder();
-			sb.append(e.getInterningKey());
+			sb.append(e.key());
 			for(int i = 0; i < e.size(); i++) {
 				Expression sube = e.get(i);
 				if(!sube.isInterned()) {
@@ -161,15 +161,15 @@ public class Factory {
 //		return internImpl(s, new Sequence(s, l));
 //	}
 
-	private New shift(New n, int shift) {
-		n.shift += shift;
-		return n;
-	}
-
-	private Capture shift(Capture n, int shift) {
-		n.shift += shift;
-		return n;
-	}
+//	private New shift(New n, int shift) {
+//		n.shift += shift;
+//		return n;
+//	}
+//
+//	private Capture shift(Capture n, int shift) {
+//		n.shift += shift;
+//		return n;
+//	}
 
 	
 	public final static Expression newChoice(SourcePosition s, UList<Expression> l) {
@@ -473,9 +473,13 @@ public class Factory {
 	// <without FLAG e>
 	
 	public final static Expression newIfFlag(SourcePosition s, String flagName) {
-		return internImpl(s, new IfFlag(s, flagName));
+		return internImpl(s, new IfFlag(s, true, flagName));
 	}
-	
+
+	public final static Expression newOnFlag(SourcePosition s, boolean predicate, String flagName, Expression e) {
+		return internImpl(s, new OnFlag(s, predicate, flagName, e));
+	}
+
 	public final static Expression newWithFlag(SourcePosition s, String flagName, Expression e) {
 		return internImpl(s, new WithFlag(s, flagName, e));
 	}
@@ -506,16 +510,16 @@ public class Factory {
 		return internImpl(s, new Block(s, e));
 	}
 
-	public static Expression newDefSymbol(SourcePosition s, Tag table, Expression e) {
-		return internImpl(s, new DefSymbol(s, table, e));
+	public static Expression newDefSymbol(SourcePosition s, NameSpace ns, Tag tableName, Expression e) {
+		return internImpl(s, new DefSymbol(s, ns, tableName, e));
 	}
 
-	public static Expression newIsSymbol(SourcePosition s, Tag table) {
-		return internImpl(s, new IsSymbol(s, /*checkLastSymbolOnly*/true, table));
+	public static Expression newIsSymbol(SourcePosition s, NameSpace ns,  Tag tableName) {
+		return internImpl(s, new IsSymbol(s, ns, tableName, /*checkLastSymbolOnly*/true));
 	}
 	
-	public static Expression newIsaSymbol(SourcePosition s, Tag table) {
-		return internImpl(s, new IsSymbol(s, /*checkLastSymbolOnly*/false, table));
+	public static Expression newIsaSymbol(SourcePosition s, NameSpace ns, Tag tableName) {
+		return internImpl(s, new IsSymbol(s, ns, tableName, /*checkLastSymbolOnly*/false));
 	}
 
 	public static Expression newDefIndent(SourcePosition s) {
