@@ -10,6 +10,7 @@ import nez.lang.Empty;
 import nez.lang.Expression;
 import nez.lang.Failure;
 import nez.lang.Link;
+import nez.lang.Multinary;
 import nez.lang.New;
 import nez.lang.NonTerminal;
 import nez.lang.Not;
@@ -19,7 +20,6 @@ import nez.lang.Repetition;
 import nez.lang.Repetition1;
 import nez.lang.Replace;
 import nez.lang.Sequence;
-import nez.lang.SequentialExpression;
 import nez.lang.Tagging;
 import nez.lang.Unary;
 import nez.util.StringUtils;
@@ -35,6 +35,12 @@ public class WaxeyeGrammarGenerator extends NezGenerator {
 		return "a PEG-style grammar for Waxeye" ;
 	}
 	
+	@Override
+	public void makeHeader() {
+		file.write("// Parsing Expression Grammars for Waxeye");
+		file.writeIndent("// Translated from Nez");
+	}
+
 	String stringfyName(String s) {
 		if(s.equals("_")) {
 			return "SPACING";
@@ -47,11 +53,15 @@ public class WaxeyeGrammarGenerator extends NezGenerator {
 		Expression e = rule.getExpression();
 		file.writeIndent(stringfyName(rule.getLocalName()));
 		file.incIndent();
-		file.writeIndent("<- ");
+		if(e instanceof New){
+			file.writeIndent("<- ");
+		} else {
+			file.writeIndent("<: ");
+		}
 		if(e instanceof Choice) {
 			for(int i = 0; i < e.size(); i++) {
 				if(i > 0) {
-					file.writeIndent("/ ");
+					file.writeIndent("| ");
 				}
 				visit(e.get(i));
 			}
@@ -59,7 +69,7 @@ public class WaxeyeGrammarGenerator extends NezGenerator {
 		else {
 			visit(e);
 		}
-		file.writeIndent(";");
+		file.writeIndent();
 		file.decIndent();
 	}	
 	
@@ -174,7 +184,7 @@ public class WaxeyeGrammarGenerator extends NezGenerator {
 		this.visit( "!", e, null);
 	}
 
-	protected void visitSequenceImpl(SequentialExpression l) {
+	protected void visitSequenceImpl(Multinary l) {
 		for(int i = 0; i < l.size(); i++) {
 			if(i > 0) {
 				file.write(" ");
@@ -195,7 +205,7 @@ public class WaxeyeGrammarGenerator extends NezGenerator {
 		}
 	}
 
-	private int appendAsString(SequentialExpression l, int start) {
+	private int appendAsString(Multinary l, int start) {
 		int end = l.size();
 		String s = "";
 		for(int i = start; i < end; i++) {
@@ -266,4 +276,5 @@ public class WaxeyeGrammarGenerator extends NezGenerator {
 		}
 		file.write("> */");
 	}
+
 }
