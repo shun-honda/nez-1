@@ -2,42 +2,70 @@ package nez.lang;
 
 import nez.SourceContext;
 import nez.ast.CommonTree;
+import nez.main.Verbose;
 import nez.util.ConsoleUtils;
 
 public class Example {
-	String ruleName;
-	CommonTree text;
+	CommonTree nameNode;
+	CommonTree textNode;
 	boolean result;
-	Example(String ruleName, CommonTree text, boolean result) {
-		this.ruleName = ruleName;
-		this.text = text;
+	Example(CommonTree nameNode, CommonTree textNode, boolean result) {
+		this.nameNode = nameNode;
+		this.textNode = textNode;
 		this.result = result;
 	}
-	boolean test(NameSpace grammar) {
-		Grammar p = grammar.newGrammar(this.ruleName, Grammar.ExampleOption);
-		SourceContext c = text.newSourceContext();
-		if(this.result) {
-			ConsoleUtils.print("testing " + this.ruleName + " ");
-			if(p.match(c)) {
-				if(c.hasUnconsumed()) {
-					ConsoleUtils.println("[UNCONSUMED]");
-					ConsoleUtils.println(c.getUnconsumedMessage());
-					return true;
+	
+	boolean test(NameSpace grammar, int option) {
+		Grammar p = grammar.newGrammar(nameNode.getText(), option);
+		if(p == null) {
+			System.out.println(nameNode.formatSourceMessage("error", "undefined nonterminal"));
+			return false;
+		}
+		SourceContext c = textNode.newSourceContext();
+		String name = (this.result ? "" : "!") + nameNode.getText() + 
+				" (" + textNode.getSource().getResourceName() + ":" + textNode.getSourcePosition() + ")";
+//		if(Verbose.Example) {
+//			Verbose.println("testing " + name + "...");
+//		}
+		boolean matchingResult = p.match(c);
+		boolean unConsumed = true;
+		if(matchingResult) {
+			while(c.hasUnconsumed()) {
+				int ch = c.byteAt(c.getPosition());
+				if(ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') {
+					c.consume(1);
+					continue;
 				}
-				ConsoleUtils.println("[PASS]");
-				return true;
+				break;
 			}
-			ConsoleUtils.println("[FAIL]");
-			ConsoleUtils.println(c.getSyntaxErrorMessage());
+			unConsumed = c.hasUnconsumed();
+		}
+		if(result) {
+			if(!matchingResult) {
+				Verbose.println("[FAIL] " + name);
+				Verbose.println(c.getSyntaxErrorMessage());
+				return false;
+			}
+			if(unConsumed) {
+				Verbose.println("[FAIL] " + name);
+				Verbose.println(c.getUnconsumedMessage());
+				return false;
+			}
+			if(Verbose.Example) {
+				Verbose.println("[PASS] " + name);
+			}
+			return true;
 		}
 		else {
-			ConsoleUtils.print("testing !" + this.ruleName + " ");
-			if(!p.match(c)) {
-				ConsoleUtils.println("[PASS]");
+			if(!matchingResult || unConsumed) {
+				if(Verbose.Example) {
+					Verbose.println("[PASS] " + name);
+				}
 				return true;
 			}
-			ConsoleUtils.println("[FAIL]");
+			Verbose.println("[FAIL] " + name);
+			return false;
 		}
-		return false;
 	}
 }
+
