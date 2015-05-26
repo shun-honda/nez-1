@@ -25,15 +25,18 @@ _
   = S*
 
 __
-  = (S / NEWLINE / '\\' NEWLINE / "#" (!'\n' .)*)*
+  = (S / NEWLINE / '\\' NEWLINE / '#' (!'\n' .)*)*
 
 ___
-  = (S / '\\' NEWLINE/ "#" (!'\n' .)*)*
+  = (S / '\\' NEWLINE/ '#' (!'\n' .)*)*
+
+____
+	= (S / NEWLINE / '\\' NEWLINE / '#' (!'\n' .)*)+
 
 EOS
   = ';'
   / NEWLINE
-  / "#" (!'\n' .)*
+  / '#' (!'\n' .)*
 
 EOF
   = !.
@@ -100,7 +103,7 @@ Statement
 	/ CompoundStatement
 
 SimpleStatement
-  = SmallStatement {@ (_ ';' __ @SmallStatement)+ #List }? _ ';'? ("#" (!'\n' .)*)? NEWLINE
+  = SmallStatement {@ (_ ';' __ @SmallStatement)+ #List }? _ ';'? ('#' (!'\n' .)*)? (NEWLINE / !.)
 
 SmallStatement
   = ExprStatement
@@ -153,7 +156,7 @@ ImportFrom
 // { @{'from' ___ @Module #From } ___ @{'import' ___ '*' #Import } #FromImport }
 
 Module
-  = { (@Name ".")* @Name #Field }
+  = { (@Name '.')* @Name #Field }
 
 ImportList
   = ImportAsName {@ (__ ',' __ @ImportAsName)+ #List }?
@@ -196,7 +199,7 @@ CompoundStatement
   / Decorated
 
 IfStatement
-  = {'if' ___ @Test ___ ':' ___ @Suite (<indent> @Elif)* (<indent> @Else)? #If }
+  = {'if' ___ @Test ___ ':' ___ @Suite (<is Indent> @Elif)* (<is Indent> @Else)? #If }
 
 Elif
   = {'elif' ___ @Test ___ ':' ___ @Suite #Elif }
@@ -205,13 +208,13 @@ Else
   = {'else' ___ ':' ___ @Suite #Else }
 
 WhileStatement
-  = {'while' ___ @Test ___ ':' ___ @Suite (<indent> @Else)? #While }
+  = {'while' ___ @Test ___ ':' ___ @Suite (<is Indent> @Else)? #While }
 
 ForStatement
-  = {'for' ___ @ExprList ___ 'in' ___ @TestList ___ ':' ___ @Suite (<indent> @Else)? #For }
+  = {'for' ___ @ExprList ___ 'in' ___ @TestList ___ ':' ___ @Suite (<is Indent> @Else)? #For }
 
 TryStatement
-  = {'try' ___ ':' ___ @Suite ((<indent> @Except)+ (<indent> @Else)? (<indent> @Finally)? / <indent> @Finally) #Try }
+  = {'try' ___ ':' ___ @Suite ((<is Indent> @Except)+ (<is Indent> @Else)? (<is Indent> @Finally)? / <is Indent> @Finally) #Try }
 
 Except
   = {'except' (___ @TestList (___ @{'as' ___ @Name #As })? )? ___ ':' ___ @Suite #Except }
@@ -230,7 +233,7 @@ WithItem
 
 Suite
   = { @SimpleStatement #Block }
-  / NEWLINE (_ EOS)* { <block <def Indent <indent> S+> @Statement (<indent> @Statement / _ EOS)* > #Block }
+  / NEWLINE (_ EOS)* { <block <def Indent <is Indent> S+> @Statement (<is Indent> @Statement / _ EOS)* > #Block }
 
 // ====================
 //      Expression
@@ -279,13 +282,13 @@ LambDefNoCond
   = { 'lambda' ___ (@VarArgList)? ___ ':' __ @TestNoCond #Lambda }
 
 OrTest
-  = AndTest {@ __ ('or' __ @AndTest) #OrTest }*
+  = AndTest {@ __ ('or' ____ @AndTest) #OrTest }*
 
 AndTest
-  = NotTest {@ __ ('and' __ @NotTest) #AndTest }*
+  = NotTest {@ __ ('and' ____ @NotTest) #AndTest }*
 
 NotTest
-  = { 'not' __ @NotTest #NotTest }
+  = { 'not' ____ @NotTest #NotTest }
   / Comparison
 
 Comparison
@@ -371,9 +374,9 @@ ExprList
   = { @StarExpr (__ ',' __ @StarExpr)* __ ','? #List }
 
 DictorsetMaker
-  = { @Test ___ ( ':' __ @Test ___ (@CompFor / (',' __ @Test ___ ':' ___ @Test ___)* ','? )
-              / (@CompFor / (',' __ @Test __)* ','? )
-              ) #Set}
+  = { @Test ___ ( ':' __ @Test ___ (@CompFor / (',' __ @Test ___ ':' ___ @Test ___)* ','?)
+                / (@CompFor / (',' __ @Test __)* ','? )
+                ) #Set}
 
 ClassDef
   = { 'class' ___ @Name ___ ('(' __ @ArgList __ ')' ___)? ':' ___ @Suite #Class} 
@@ -409,7 +412,7 @@ YieldArg
   / TestList
 
 NoParenthesesArgumentList_FuncCall
-  = Name {@ _ !(KEYWORD S+ / '(' / ',') @ArgList #Apply }
+  = Name {@ _ !(KEYWORD S+ / '(' / ',') Argument #Apply }
 
 None
   = { 'None' #None }
