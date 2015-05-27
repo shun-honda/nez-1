@@ -1,8 +1,7 @@
-package nez.runtime;
+package nez.vm;
 
 import java.util.Arrays;
 
-import nez.SourceContext;
 import nez.ast.Tag;
 import nez.lang.ByteChar;
 import nez.lang.ByteMap;
@@ -13,15 +12,12 @@ import nez.lang.IsIndent;
 import nez.lang.IsSymbol;
 import nez.lang.Link;
 import nez.lang.New;
-import nez.lang.Not;
 import nez.lang.Prediction;
 import nez.lang.Production;
 import nez.lang.Replace;
 import nez.lang.Sequence;
 import nez.lang.Tagging;
-import nez.util.ConsoleUtils;
 import nez.util.StringUtils;
-import nez.util.UList;
 
 public abstract class Instruction {
 	protected Expression  e;
@@ -39,7 +35,7 @@ public abstract class Instruction {
 		return null;
 	}
 	
-	short isAcceptImpl(int ch) {
+	final short isAcceptImpl(int ch) {
 		return next == null ? Prediction.Accept : this.next.isAcceptImpl(ch);
 	}
 
@@ -87,44 +83,6 @@ public abstract class Instruction {
 	boolean debug() {
 		return false;
 	}
-			
-	public static boolean run(Instruction code, SourceContext sc) {
-		boolean result = false;
-		try {
-			while(true) {
-				code = code.exec(sc);
-			}
-		}
-		catch (TerminationException e) {
-			result = e.status;
-		}
-		return result;
-	}
-
-	public static boolean debug(Instruction code, SourceContext sc) {
-		boolean result = false;
-		String u = "Start";
-		UList<String> stack = new UList<String>(new String[128]);
-		stack.add("Start");
-		try {
-			while(true) {
-				if(code instanceof ICallPush) {
-					stack.add(u);
-					u = ((ICallPush)code).rule.getLocalName();
-				}
-				if(code instanceof IRet) {
-					u = stack.ArrayValues[stack.size()-1];
-					stack.clear(stack.size()-1);
-				}
-				ConsoleUtils.println(u + "(" + sc.getPosition() + ")  " + code.id + " " + code);
-				code = code.exec(sc);
-			}
-		}
-		catch (TerminationException e) {
-			result = e.status;
-		}
-		return result;
-	}
 }
 
 interface StackOperation {
@@ -134,10 +92,6 @@ interface StackOperation {
 class IFail extends Instruction implements StackOperation {
 	IFail(Expression e) {
 		super(e, null);
-	}
-	@Override
-	short isAcceptImpl(int ch) {
-		return Prediction.Reject;
 	}
 	@Override
 	Instruction exec(Context sc) throws TerminationException {
@@ -156,13 +110,6 @@ class IFailPush extends Instruction implements StackOperation {
 		return this.failjump;
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		if(next.isAcceptImpl(ch) != Prediction.Accept) {
-			return failjump.isAcceptImpl(ch);
-		}
-		return Prediction.Accept;
-	}
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		return sc.opIFailPush(this);
 	}
@@ -175,16 +122,6 @@ class IFailPush extends Instruction implements StackOperation {
 class INotFailPush extends IFailPush implements StackOperation {
 	INotFailPush(Expression e, Instruction failjump, Instruction next) {
 		super(e, failjump, next);
-	}
-	@Override
-	short isAcceptImpl(int ch) {
-		if(e instanceof Not) {
-			short r = e.acceptByte(ch, 0);
-			if(r == Prediction.Reject) {
-				return r;
-			}
-		}
-		return failjump.isAcceptImpl(ch);
 	}
 }
 
@@ -236,21 +173,6 @@ class ICallPush extends Instruction implements StackOperation {
 		this.next = labeling(jump);
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		try {
-			short r = next.isAcceptImpl(ch);
-			if(r == Prediction.Unconsumed) {
-				return jump == null ? Prediction.Accept : jump.isAcceptImpl(ch);
-			}
-			return r;
-		}
-		catch(StackOverflowError e) {
-			//System.out.println(e + " at " + this.rule.getLocalName());
-			return Prediction.Accept;
-		}
-	}
-
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		return sc.opICallPush(this);
 	}
@@ -268,10 +190,6 @@ class IRet extends Instruction implements StackOperation {
 	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		return sc.opIRet();
-	}
-	@Override
-	short isAcceptImpl(int ch) {
-		return Prediction.Unconsumed;
 	}
 	@Override
 	protected String getOperand() {
@@ -306,10 +224,6 @@ class IExit extends Instruction {
 		this.status = status;
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		return this.status ? Prediction.Accept : Prediction.Reject;
-	}
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		throw new TerminationException(status);
 	}
@@ -320,13 +234,6 @@ class IAnyChar extends Instruction {
 		super(e, next);
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		if(ch == Prediction.TextEOF || ch == Prediction.BinaryEOF) {
-			return Prediction.Reject;
-		}
-		return Prediction.Accept;
-	}
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		return sc.opIAnyChar(this);
 	}
@@ -335,13 +242,6 @@ class IAnyChar extends Instruction {
 class INotAnyChar extends Instruction {
 	INotAnyChar(Expression e, boolean isBinary, Instruction next) {
 		super(e, next);
-	}
-	@Override
-	short isAcceptImpl(int ch) {
-		if(ch == Prediction.TextEOF || ch == Prediction.BinaryEOF) {
-			return Prediction.Accept;
-		}
-		return Prediction.Reject;
 	}
 	@Override
 	Instruction exec(Context sc) throws TerminationException {
@@ -359,10 +259,6 @@ class IByteChar extends Instruction {
 		this.byteChar = e.byteChar;
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		return this.byteChar == ch ? Prediction.Accept : Prediction.Reject;
-	}
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		return sc.opIByteChar(this);
 	}
@@ -375,10 +271,6 @@ class IByteChar extends Instruction {
 class IOptionByteChar extends IByteChar {
 	IOptionByteChar(ByteChar e, Instruction next) {
 		super(e, next);
-	}
-	@Override
-	short isAcceptImpl(int ch) {
-		return this.byteChar == ch ? Prediction.Accept : next.isAcceptImpl(ch);
 	}
 	@Override
 	Instruction exec(Context sc) throws TerminationException {
@@ -398,10 +290,6 @@ class IByteMap extends Instruction {
 //		this.byteMap[e.byteChar] = true;
 //	}
 	@Override
-	short isAcceptImpl(int ch) {
-		return this.byteMap[ch] ? Prediction.Accept : Prediction.Reject;
-	}
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		return sc.opIByteMap(this);
 	}
@@ -416,10 +304,6 @@ class IOptionByteMap extends IByteMap {
 		super(e, next);
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		return this.byteMap[ch] ? Prediction.Accept : next.isAcceptImpl(ch);
-	}
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		return sc.opIOptionByteMap(this);
 	}
@@ -430,15 +314,25 @@ class IConsume extends Instruction {
 		super(e, next);
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		return Prediction.Accept;
-	}
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		sc.consume(1);
 		return this.next;
 	}
 }
+
+class IBacktrack extends Instruction {
+	final int prefetched;
+	IBacktrack(Expression e, int prefetched, Instruction next) {
+		super(e, next);
+		this.prefetched = prefetched;
+	}
+	@Override
+	Instruction exec(Context sc) throws TerminationException {
+		sc.consume(-1);
+		return this.next;
+	}
+}
+
 
 class IDfaDispatch extends Instruction {
 	Instruction[] jumpTable;
@@ -456,12 +350,9 @@ class IDfaDispatch extends Instruction {
 		}
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		return jumpTable[ch].isAcceptImpl(ch);
-	}
-	@Override
 	Instruction exec(Context sc) throws TerminationException {
 		int ch = sc.byteAt(sc.getPosition());
+		sc.consume(1);
 		//System.out.println("ch="+(char)ch + " " + jumpTable[ch]);
 		return jumpTable[ch].exec(sc);
 	}
@@ -849,10 +740,6 @@ class INotByteMap extends Instruction {
 		this.byteMap[e.byteChar] = true;
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		return this.byteMap[ch] ? Prediction.Reject : next.isAcceptImpl(ch);
-	}
-	@Override
 	protected String getOperand() {
 		return StringUtils.stringfyCharClass(byteMap);
 	}
@@ -872,10 +759,6 @@ class IRepeatedByteMap extends Instruction {
 		super(e, next);
 		this.byteMap = ByteMap.newMap(false);
 		this.byteMap[e.byteChar] = true;
-	}
-	@Override
-	short isAcceptImpl(int ch) {
-		return this.byteMap[ch] ? Prediction.Accept : next.isAcceptImpl(ch);
 	}
 	@Override
 	protected String getOperand() {
@@ -899,10 +782,6 @@ class IMultiChar extends Instruction {
 		this.optional = optional;
 	}
 	@Override
-	short isAcceptImpl(int ch) {
-		return (utf8[0] & 0xff) == ch ? Prediction.Accept : Prediction.Reject;
-	}
-	@Override
 	protected String getOperand() {
 		StringBuilder sb = new StringBuilder();
 		for(int i = 0; i < utf8.length; i++) {
@@ -922,10 +801,6 @@ class IMultiChar extends Instruction {
 class INotMultiChar extends IMultiChar {
 	INotMultiChar(Sequence e, Instruction next) {
 		super(e, false, next);
-	}
-	@Override
-	short isAcceptImpl(int ch) {
-		return Prediction.Unconsumed;
 	}
 	@Override
 	Instruction exec(Context sc) throws TerminationException {

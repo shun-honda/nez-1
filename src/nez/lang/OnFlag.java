@@ -3,10 +3,10 @@ package nez.lang;
 import java.util.TreeMap;
 
 import nez.ast.SourcePosition;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
 import nez.util.UList;
 import nez.util.UMap;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class OnFlag extends Unary {
 	boolean predicate;
@@ -31,7 +31,7 @@ public class OnFlag extends Unary {
 		return predicate ? "on " + this.flagName : "on !" + this.flagName;
 	}
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeOnFlag(this);
 	}
 
@@ -55,8 +55,8 @@ public class OnFlag extends Unary {
 	}
 	
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
-		return this.inner.encode(bc, next);
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+		return this.inner.encode(bc, next, failjump);
 	}
 
 	@Override

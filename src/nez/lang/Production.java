@@ -3,12 +3,12 @@ package nez.lang;
 import java.util.TreeMap;
 
 import nez.ast.SourcePosition;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
 import nez.util.ConsoleUtils;
 import nez.util.StringUtils;
 import nez.util.UList;
 import nez.util.UMap;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class Production extends Expression {
 	NameSpace  ns;
@@ -29,7 +29,7 @@ public class Production extends Expression {
 		this.ns = ns;
 		this.name = name;
 		this.uname = ns.uniqueName(name);
-		this.body = (body == null) ? Factory.newEmpty(s) : body;
+		this.body = (body == null) ? GrammarFactory.newEmpty(s) : body;
 		this.original = this;
 		this.minlen = StructualAnalysis.quickConsumedCheck(body);
 	}
@@ -39,7 +39,7 @@ public class Production extends Expression {
 		this.ns = original.getNameSpace();
 		this.name = name;
 		this.uname = ns.uniqueName(name);
-		this.body = (body == null) ? Factory.newEmpty(s) : body;
+		this.body = (body == null) ? GrammarFactory.newEmpty(s) : body;
 		this.original = original;
 		this.minlen = StructualAnalysis.quickConsumedCheck(body);
 	}
@@ -98,7 +98,7 @@ public class Production extends Expression {
 	}
 
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeProduction(this);
 	}
 	
@@ -235,8 +235,8 @@ public class Production extends Expression {
 
 	
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
-		return this.getExpression().encode(bc, next);
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+		return this.getExpression().encode(bc, next, failjump);
 	}
 
 	@Override

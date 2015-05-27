@@ -1,8 +1,8 @@
 package nez.lang;
 
 import nez.ast.SourcePosition;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class Failure extends Unconsumed {
 	Failure(SourcePosition s) {
@@ -17,7 +17,7 @@ public class Failure extends Unconsumed {
 		return "!!";
 	}
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeFailure(this);
 	}
 	@Override
@@ -30,7 +30,7 @@ public class Failure extends Unconsumed {
 		return Prediction.Reject;
 	}
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
 		return bc.encodeFail(this);
 	}
 	@Override

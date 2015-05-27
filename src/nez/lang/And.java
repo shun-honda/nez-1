@@ -1,10 +1,10 @@
 package nez.lang;
 
 import nez.ast.SourcePosition;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
 import nez.util.UList;
 import nez.util.UMap;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class And extends Unary {
 	And(SourcePosition s, Expression e) {
@@ -16,7 +16,7 @@ public class And extends Unary {
 	}
 
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeAnd(this);
 	}
 
@@ -48,8 +48,8 @@ public class And extends Unary {
 	}
 	
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
-		return bc.encodeAnd(this, next);
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+		return bc.encodeAnd(this, next, failjump);
 	}
 	
 	@Override

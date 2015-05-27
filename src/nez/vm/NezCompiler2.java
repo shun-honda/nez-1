@@ -1,8 +1,8 @@
-package nez.runtime;
+package nez.vm;
 
 import nez.lang.Expression;
 import nez.lang.Grammar;
-import nez.lang.Manipulator;
+import nez.lang.GrammarReshaper;
 import nez.lang.Production;
 import nez.main.Verbose;
 import nez.util.UFlag;

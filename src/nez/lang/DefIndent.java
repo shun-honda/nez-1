@@ -1,9 +1,9 @@
 package nez.lang;
 
 import nez.ast.SourcePosition;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
 import nez.util.StringUtils;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class DefIndent extends Unconsumed {
 	DefIndent(SourcePosition s) {
@@ -20,8 +20,8 @@ public class DefIndent extends Unconsumed {
 	}
 
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
-		return bc.encodeDefIndent(this, next);
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+		return bc.encodeDefIndent(this, next, failjump);
 	}
 	@Override
 	protected int pattern(GEP gep) {
@@ -33,7 +33,7 @@ public class DefIndent extends Unconsumed {
 		sb.append(token);
 	}
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeUndefined(this);
 	}
 

@@ -6,49 +6,35 @@ import nez.SourceContext;
 import nez.ast.CommonTree;
 import nez.ast.CommonTreeFactory;
 import nez.ast.ParsingFactory;
-import nez.ast.SourcePosition;
 import nez.main.Recorder;
 import nez.main.Verbose;
-import nez.runtime.Instruction;
-import nez.runtime.MemoPoint;
-import nez.runtime.MemoTable;
-import nez.runtime.NezCompiler;
-import nez.runtime.NezCompiler0;
 import nez.util.ConsoleUtils;
 import nez.util.UFlag;
 import nez.util.UList;
 import nez.util.UMap;
-
-class GProduction {
-	int ref = 1;
-	Production p;
-	Expression e;
-	GProduction(Production p) {
-		this.p = p;
-		this.e = p.getExpression();
-	}
-}
+import nez.vm.DeprecatedNezCompiler;
+import nez.vm.Instruction;
+import nez.vm.Machine;
+import nez.vm.MemoPoint;
+import nez.vm.MemoTable;
+import nez.vm.NezCompiler;
+import nez.vm.NezCompiler1;
 
 public class Grammar {
 	Production start;
-	UMap<GProduction>          productionMap;
 	UList<Production>          productionList;
+	UMap<Production>           productionMap;
 
 	Grammar(Production start, int option) {
 		this.start = start;
 		this.productionList = new UList<Production>(new Production[4]);
-		this.productionMap = new UMap<GProduction>();
+		this.productionMap = new UMap<Production>();
 		this.setOption(option);
 		TreeMap<String, Boolean> conditionMap = new TreeMap<String, Boolean>(); 
 		analyze(start, conditionMap);
-		if(!UFlag.is(option, Grammar.ASTConstruction)) {
-			reshapeAll(Manipulator.RemoveAST);
-		}
 		if(conditionMap.size() > 0) {
 			new ConditionalAnalysis(this);
 		}
-		new GrammarOptimizer(option).optimize(this);
-
 	}
 
 	public Production getStartProduction() {
@@ -59,23 +45,24 @@ public class Grammar {
 		return this.productionList;
 	}
 
-	void reshapeAll(Manipulator m) {
-		for(Production p: productionList) {
-			GProduction gp = this.productionMap.get(p.getUniqueName());
-			gp.e = gp.e.reshape(m);
-		}
-	}
+//	void reshapeAll(GrammarReshaper m) {
+//		for(Production p: productionList) {
+//			p = this.productionMap.get(p.getUniqueName());
+//			Expression shaped = p.e.reshape(m);
+//			if(shaped != gp.e) {
+//				//System.out.println(m.getClass().getSimpleName() + ": " + p.getLocalName() + " = " + shaped);
+//				gp.e = shaped;
+//			}
+//		}
+//	}
 	
 	private void analyze(Production p, TreeMap<String, Boolean> conditionMap) {
 		String uname = p.getUniqueName();
-		GProduction gp = productionMap.get(uname);
-		if(gp != null) {
-			gp.ref++;
+		if(productionMap.hasKey(uname)) {
 			return;
 		}
-		gp =  new GProduction(p);
 		productionList.add(p);
-		productionMap.put(p.getUniqueName(), gp);
+		productionMap.put(p.getUniqueName(), p);
 		analyze(p.getExpression(), conditionMap);
 	}
 	
@@ -90,91 +77,6 @@ public class Grammar {
 			analyze(se, conditionMap);
 		}
 	}
-
-//	private void analyze(int pos, Production r) {
-//		if(!productionMap.hasKey(r.getUniqueName())) {
-//			productionList.add(r);
-//			productionMap.put(r.getUniqueName(), new GProduction(r));
-//			add(pos, r.getExpression());
-//		}
-//	}
-//	
-//	private Expression rep = null;
-//	
-//	private void add(int pos, Expression expr) {
-//		if(expr instanceof NonTerminal) {
-//			//System.out.println("call " + ((NonTerminal) expr).getUniqueName() + " pos=" + pos + " redundant? " + checkRedundantCall(expr, pos));
-//			path.add(new Trace(expr, pos));
-//			analyze(pos, ((NonTerminal) expr).getProduction());
-//		}
-//		if(rep == null && expr instanceof nez.lang.Repetition) {
-//			rep = expr;
-//			//System.out.println("top level repetition: " + expr);
-//			add(pos, expr.get(0));
-//			rep = null;
-//		}
-//		for(Expression se : expr) {
-//			add(pos, se);
-//			if(!(expr instanceof nez.lang.Choice)) {
-//				pos += count(se);
-//			}
-//		}
-//	}
-//
-//	class Trace {
-//		Expression e;
-//		int pos;
-//		int count = 0;
-//		boolean redundant = false;
-//		Trace(Expression e, int pos) {
-//			this.e = e;
-//			this.pos = pos;
-//		}
-//		@Override
-//		public String toString() {
-//			return e + " pos=" + pos + " redundant? " + redundant;
-//		}
-//	}
-//
-//	UList<Trace> path = new UList<Trace>(new Trace[128]);
-//	
-//	void dump() {
-//		for(Trace t : this.path) {
-//			System.out.println(t);
-//		}
-//	}
-//
-//	boolean checkRedundantCall(Expression e, int pos) {
-//		boolean r = false;
-//		for(Trace t : this.path) {
-//			if(t.e == e && t.pos >= pos) {
-//				t.redundant = true;
-//				r = true;
-//			}
-//		}
-//		return r;
-//	}
-//	
-////	boolean isRecursivelyVisited(NonTerminal e) {
-////		for(int i = path.size() - 1; i >= 0; i--) {
-////			if(path.ArrayValues[i].e == e) {
-////				path.ArrayValues[i].count += 1;
-////				return true;
-////			}
-////		}
-////		return false;
-////	}
-////	
-////	void push(Expression e, int pos) {
-////		path.add(new Trace(e, pos));
-////	}
-//	
-//	int count(Expression e) {
-//		return (e.isAlwaysConsumed()) ? 1 : 0;
-//	}
-//
-//	void checkBacktrack(Expression e, int pos) {
-//	}
 
 	/* --------------------------------------------------------------------- */
 	/* memoization configuration */
@@ -220,23 +122,23 @@ public class Grammar {
 
 	public final Instruction compile() {
 		if(compiledCode == null) {
-			NezCompiler0 bc = new NezCompiler0(this.option);
-			compiledCode = bc.encode(this.productionList);
-			this.InstructionSize  = bc.getInstructionSize();
-			this.memoPointSize = bc.getMemoPointSize();
-			if(Verbose.PackratParsing) {
-				this.memoPointList = bc.getMemoPointList();
-			}
-			if(Verbose.VirtualMachine) {
-				bc.dump(this.productionList);
-			}
+			NezCompiler bc = new NezCompiler1(this.option);
+			compiledCode = bc.encode(this).startPoint;
+//			this.InstructionSize  = bc.getInstructionSize();
+//			this.memoPointSize = bc.getMemoPointSize();
+//			if(Verbose.PackratParsing) {
+//				this.memoPointList = bc.getMemoPointList();
+//			}
+//			if(Verbose.VirtualMachine) {
+//				bc.dump(this.productionList);
+//			}
 		}
 		return compiledCode;
 	}
 	
 	public NezCompiler cc() {
-		NezCompiler0 bc = new NezCompiler0(this.option);
-		bc.encode(productionList);
+		NezCompiler bc = new NezCompiler1(this.option);
+		bc.encode(this);
 		return bc;
 	}
 		
@@ -245,10 +147,10 @@ public class Grammar {
 		Instruction pc = this.compile();
 		s.initJumpStack(64, getMemoTable(s));
 		if(Verbose.Debug) {
-			matched = Instruction.debug(pc, s);
+			matched = Machine.debug(pc, s);
 		}
 		else {
-			matched = Instruction.run(pc, s);
+			matched = Machine.run(pc, s);
 		}
 		if(matched) {
 			s.newTopLevelNode();
@@ -393,235 +295,4 @@ public class Grammar {
 		}
 		return s;
 	}
-}
-
-class GrammarOptimizer extends Manipulator {
-
-	int option;
-	Grammar grammar = null;
-	
-	public GrammarOptimizer(int option) {
-		this.option = option;
-	}
-
-	public void optimize(Grammar grammar) {
-		this.grammar = grammar;
-		grammar.reshapeAll(this);
-		this.grammar = null;
-	}
-
-	@Override
-	public Expression reshapeChoice(Choice p) {
-		UList<Expression> l = new UList<Expression>(new Expression[p.size()]);
-		flatten(p, l);
-		if(UFlag.is(option, Grammar.Optimization)) {
-			Expression o = newOptimizedByteMap(p.s, l);
-			if(o != null) {
-				return o;
-			}
-		}
-		return Factory.newChoice(p.getSourcePosition(), l);
-//		if(UFlag.is(option, Grammar.Prediction) && !UFlag.is(option, Grammar.DFA)) {
-//			Expression fails = Factory.newFailure(s);
-//			this.matchCase = new Expression[257];
-//			for(int ch = 0; ch <= 256; ch++) {
-//				Expression selected = selectChoice(ch, fails, option);
-//				matchCase[ch] = selected;
-//			}
-//		}
-	}
-	
-	private void flatten(Choice parentExpression, UList<Expression> l) {
-		for(Expression subExpression: parentExpression) {
-			subExpression = subExpression.reshape(this);
-//			e = resolveNonTerminal(e);
-			if(subExpression instanceof Choice) {
-				flatten((Choice)subExpression, l);
-			}
-			else {
-				l.add(subExpression);
-			}
-		}
-	}
-	
-	public final static Expression resolveNonTerminal(Expression e) {
-		while(e instanceof NonTerminal) {
-			NonTerminal nterm = (NonTerminal) e;
-			e = nterm.deReference();
-		}
-		return e;
-	}
-	
-	@Override
-	public Expression reshapeNonTerminal(NonTerminal p) {
-		Expression e = p;
-		while(e instanceof NonTerminal) {
-			NonTerminal nterm = (NonTerminal) e;
-			e = nterm.deReference().optimize(option);
-		}
-		return e;
-	}
-
-	@Override
-	public Expression reshapeSequence(Sequence parentExpression) {
-		UList<Expression> l = new UList<Expression>(new Expression[parentExpression.size()]);
-		for(Expression subExpression: parentExpression) {
-			Factory.addSequence(l, subExpression.reshape(this));
-		}
-		reorderSequence(l);
-		if(UFlag.is(option, Grammar.Optimization)) {
-			int loc = findNotAny(0, l);
-			if(loc != -1) {
-				UList<Expression> nl = new UList<Expression>(new Expression[l.size()]);
-				joinNotAny(0, loc, l, nl);
-				l = nl;
-			}
-		}
-		return Factory.newSequence(parentExpression.getSourcePosition(), l);
-	}
-	
-	/**
-	 * Sequence otimization
-	 * // #t 'a' 'b' => 'a' #t 'b'
-	 */
-
-	private void reorderSequence(UList<Expression> l) {
-		for(int i = 1; i < l.size(); i++) {
-			Expression p = l.ArrayValues[i-1];
-			Expression e = l.ArrayValues[i];
-			if(Expression.isByteConsumed(e)) {   // #t 'a' 'b' => 'a' #t 'b'
-				if(Expression.isPositionIndependentOperation(p)) {
-					l.ArrayValues[i-1] = e;
-					l.ArrayValues[i]   = p;
-					continue;
-				}
-				if(p instanceof New) {
-					New n = (New)p;
-					l.ArrayValues[i-1] = e;
-					if(n.isInterned()) {
-						l.ArrayValues[i] =  Factory.newNew(n.s, n.lefted, n.shift - 1);
-					}
-					else {
-						n.shift -= 1;
-						l.ArrayValues[i]   = n;
-					}
-					continue;
-				}
-				if(p instanceof Capture) {
-					Capture n = (Capture)p;
-					l.ArrayValues[i-1] = e;
-					if(n.isInterned()) {
-						l.ArrayValues[i] =  Factory.newCapture(n.s, n.shift - 1);
-					}
-					else {
-						n.shift -= 1;
-						l.ArrayValues[i]   = n;
-					}
-					continue;
-				}
-			}
-		}
-	}
-
-	private int findNotAny(int s, UList<Expression> l) {
-		for(int i = s; i < l.size(); i++) {
-			Expression p = l.ArrayValues[i];
-			if(p instanceof Not) {
-				if(findAny(i, l) != -1) {
-					return i;
-				}
-			}
-		}
-		return -1;
-	}
-
-	private int findAny(int s, UList<Expression> l) {
-		for(int i = s; i < l.size(); i++) {
-			Expression p = l.ArrayValues[i];
-			if(p instanceof Not) {
-				continue;
-			}
-			if(p instanceof AnyChar) {
-				return i;
-			}
-			break;
-		}
-		return -1;
-	}
-
-	private void joinNotAny(int s, int loc, UList<Expression> l, UList<Expression> nl) {
-		for(int i = s; i < loc; i++) {
-			nl.add(l.ArrayValues[i]);
-		}
-		int e = findAny(loc, l);
-		assert(e != -1);
-		Not not = (Not)l.ArrayValues[loc];
-		AnyChar any = (AnyChar)l.ArrayValues[e];
-		if(loc + 1 < e) {
-			UList<Expression> sl = new UList<Expression>(new Expression[4]);
-			for(int i = loc; i < e; i++) {
-				Factory.addChoice(sl, l.ArrayValues[i]);
-			}
-			not = Factory.newNot(not.s, Factory.newChoice(not.s, sl).reshape(this));
-		}
-		if(not.inner instanceof ByteChar) {
-			boolean[] byteMap = ByteMap.newMap(true);
-			byteMap[((ByteChar) not.inner).byteChar] = false;
-			if(!UFlag.is(option, Grammar.Binary)) {
-				byteMap[0] = false;
-			}
-			nl.add(Factory.newByteMap(not.s, byteMap));
-		}
-		else if(not.inner instanceof ByteMap) {
-			boolean[] byteMap = ByteMap.newMap(false);
-			ByteMap.appendBitMap(byteMap, ((ByteMap) not.inner).byteMap);
-			ByteMap.reverse(byteMap, option);
-			nl.add(Factory.newByteMap(not.s, byteMap));
-		}
-		else {
-			nl.add(not);
-			nl.add(any);
-		}
-		loc = findNotAny(e+1, l);
-		if(loc != -1) {
-			joinNotAny(e+1, loc, l, nl);
-			return;
-		}
-		for(int i = e+1; i < l.size(); i++) {
-			nl.add(l.ArrayValues[i]);
-		}
-	}
-	
-	public Expression reshapeLink(Link p) {
-		if(p.get(0) instanceof Choice) {
-			Expression inner = p.get(0);
-			UList<Expression> l = new UList<Expression>(new Expression[inner.size()]);
-			for(Expression subChoice: inner) {
-				subChoice = subChoice.reshape(this);
-				l.add(Factory.newLink(p.getSourcePosition(), subChoice, p.index));
-			}			
-			return Factory.newChoice(inner.getSourcePosition(), l);
-		}
-		return super.reshapeLink(p);
-	}
-	
-	public static Expression newOptimizedByteMap(SourcePosition s, UList<Expression> l) {
-		boolean byteMap[] = ByteMap.newMap(false);
-		for(Expression e : l) {
-			if(e instanceof ByteChar) {
-				byteMap[((ByteChar) e).byteChar] = true;
-				continue;
-			}
-			if(e instanceof ByteMap) {
-				ByteMap.appendBitMap(byteMap, ((ByteMap)e).byteMap);
-				continue;
-			}
-			if(e instanceof AnyChar) {
-				return e;
-			}
-			return null;
-		}
-		return (ByteMap)Factory.newByteMap(s, byteMap);
-	}
-	
 }

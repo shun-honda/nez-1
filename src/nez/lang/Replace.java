@@ -1,9 +1,9 @@
 package nez.lang;
 
 import nez.ast.SourcePosition;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
 import nez.util.StringUtils;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class Replace extends ASTOperation {
 	public String value;
@@ -24,11 +24,11 @@ public class Replace extends ASTOperation {
 		return false;
 	}
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeReplace(this);
 	}
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
 		return bc.encodeReplace(this, next);
 	}
 }

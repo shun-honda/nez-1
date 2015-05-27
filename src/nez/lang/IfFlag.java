@@ -3,8 +3,8 @@ package nez.lang;
 import java.util.TreeMap;
 
 import nez.ast.SourcePosition;
-import nez.runtime.NezCompiler;
-import nez.runtime.Instruction;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class IfFlag extends Unconsumed {
 	boolean predicate;
@@ -28,7 +28,7 @@ public class IfFlag extends Unconsumed {
 		return predicate ? "if " + this.flagName : "if !" + this.flagName;
 	}
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeIfFlag(this);
 	}
 
@@ -38,7 +38,7 @@ public class IfFlag extends Unconsumed {
 	}
 
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
 		return next;
 	}
 	@Override

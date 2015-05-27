@@ -3,19 +3,20 @@ import java.util.AbstractList;
 import java.util.TreeMap;
 
 import nez.ast.SourcePosition;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
 import nez.util.UList;
 import nez.util.UMap;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public abstract class Expression extends AbstractList<Expression> {
 	public final static boolean ClassicMode = false;
+
 	SourcePosition s = null;
 	int    internId   = 0;
 	
-	public Expression optimized;
 	int    optimizedOption = -1;
 	
+	public Expression optimized;
 	Expression(SourcePosition s) {
 		this.s = s;
 		this.internId = 0;
@@ -35,7 +36,7 @@ public abstract class Expression extends AbstractList<Expression> {
 	}
 	
 	final Expression intern() {
-		return Factory.intern(this);
+		return GrammarFactory.intern(this);
 	}
 
 	public abstract String getPredicate();
@@ -50,7 +51,7 @@ public abstract class Expression extends AbstractList<Expression> {
 		return 0;
 	}
 	
-	public abstract Expression reshape(Manipulator m);
+	public abstract Expression reshape(GrammarReshaper m);
 	
 	public final boolean isAlwaysConsumed() {
 		return this.checkAlwaysConsumed(null, null, null);
@@ -105,7 +106,7 @@ public abstract class Expression extends AbstractList<Expression> {
 		visitor.visit(this);
 	}
 
-	public abstract Instruction encode(NezCompiler bc, Instruction next);
+	public abstract Instruction encode(NezCompiler bc, Instruction next, Instruction failjump);
 
 
 	protected int pattern(GEP gep) {
@@ -129,5 +130,8 @@ public abstract class Expression extends AbstractList<Expression> {
 	public static final boolean isPositionIndependentOperation(Expression e) {
 		return (e instanceof Tagging || e instanceof Replace);
 	}
+	
+	
+	
 
 }

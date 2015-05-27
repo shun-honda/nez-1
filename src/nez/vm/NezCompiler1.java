@@ -1,6 +1,5 @@
-package nez.runtime;
+package nez.vm;
 
-import java.util.Arrays;
 import java.util.HashMap;
 
 import nez.lang.And;
@@ -14,7 +13,6 @@ import nez.lang.DefIndent;
 import nez.lang.DefSymbol;
 import nez.lang.ExistsSymbol;
 import nez.lang.Expression;
-import nez.lang.Factory;
 import nez.lang.Grammar;
 import nez.lang.IsIndent;
 import nez.lang.IsSymbol;
@@ -24,93 +22,171 @@ import nez.lang.New;
 import nez.lang.NonTerminal;
 import nez.lang.Not;
 import nez.lang.Option;
-import nez.lang.Prediction;
 import nez.lang.Production;
 import nez.lang.Repetition;
 import nez.lang.Repetition1;
 import nez.lang.Replace;
-import nez.lang.Sequence;
 import nez.lang.Tagging;
 import nez.main.Verbose;
-import nez.util.StringUtils;
-import nez.util.UFlag;
 import nez.util.UList;
 
+
 public class NezCompiler1 extends NezCompiler {
+
+	protected final Instruction commonFailure = new IFail(null);
 
 	public NezCompiler1(int option) {
 		super(option);
 	}
 
-	// encoding
-
-	private Instruction failed = new IFail(null);
+	HashMap<String, ProductionCode> codeMap = new HashMap<String, ProductionCode>();
 	
-	public final Instruction encodeExpression(Expression e, Instruction next) {
-		return e.encode(this, next);
+	void count(Production p) {
+		String uname = p.getUniqueName();
+		ProductionCode c = this.codeMap.get(uname);
+		if(c == null) {
+			c = new ProductionCode(p);
+			codeMap.put(uname, c);
+		}
+		c.ref++;
 	}
 	
-	public final Instruction encodeMatchAny(AnyChar p, Instruction next) {
+	void countNonTerminalReference(Expression e) {
+		if(e instanceof NonTerminal) {
+			Production p = ((NonTerminal) e).getProduction();
+			count(p);
+		}
+		for(Expression sub: e) {
+			countNonTerminalReference(sub);
+		}
+	}
+
+	void initCodeMap(Grammar grammar) {
+		codeMap = new HashMap<String, ProductionCode>();
+		Production start = grammar.getStartProduction();
+		count(start);
+		countNonTerminalReference(start.getExpression());
+		for(Production p : grammar.getProductionList()) {
+			if(p != start) {
+				this.countNonTerminalReference(p.getExpression());
+			}
+		}
+	}
+	
+	protected void encodeProduction(UList<Instruction> codeList, Production p, Instruction next) {
+		String uname = p.getUniqueName();
+		if(Verbose.Debug) {
+			Verbose.debug("compiling .. " + p);
+		}
+		ProductionCode code = this.codeMap.get(uname);
+		if(code != null) {
+	//		Expression e = p.getExpression();
+	//		if(UFlag.is(option, Grammar.Inlining)  && this.ruleMap.size() > 0 && p.isInline() ) {
+	//			//System.out.println("skip .. " + r.getLocalName() + "=" + e);
+	//			continue;
+	//		}
+	//		if(!UFlag.is(option, Grammar.ASTConstruction)) {
+	//			e = e.reshape(Manipulator.RemoveAST);
+	//		}
+			code.codePoint = encodeExpression(code.localExpression, next, null/*failjump*/);
+			code.start = codeList.size();
+			this.layoutCode(codeList, code.codePoint);
+			code.end = codeList.size();
+		}
+	}
+	
+	@Override
+	public NezCode encode(Grammar grammar) {
+		//long t = System.nanoTime();
+		initCodeMap(grammar);
+		UList<Instruction> codeList = new UList<Instruction>(new Instruction[64]);
+		Production start = grammar.getStartProduction();
+		this.encodeProduction(codeList, start, new IRet(start));
+		for(Production p : grammar.getProductionList()) {
+			if(p != start) {
+				this.encodeProduction(codeList, p, new IRet(p));
+			}
+		}
+		for(Instruction inst : codeList) {
+			if(inst instanceof ICallPush) {
+				ProductionCode deref = this.codeMap.get(((ICallPush) inst).rule.getUniqueName());
+				((ICallPush) inst).setResolvedJump(deref.codePoint);
+			}
+		}
+		//long t2 = System.nanoTime();
+		//Verbose.printElapsedTime("CompilingTime", t, t2);
+		this.codeMap = null;
+		return new NezCode(codeList.ArrayValues[0]);
+	}
+	
+	// encoding
+	
+	public Instruction encodeExpression(Expression e, Instruction next, Instruction failjump) {
+		return e.encode(this, next, failjump);
+	}
+	
+	public Instruction encodeMatchAny(AnyChar p, Instruction next, Instruction failjump) {
 		return new IAnyChar(p, next);
 	}
 
-	public final Instruction encodeByteChar(ByteChar p, Instruction next) {
+	public Instruction encodeByteChar(ByteChar p, Instruction next, Instruction failjump) {
 		return new IByteChar(p, next);
 	}
 
-	public final Instruction encodeByteMap(ByteMap p, Instruction next) {
+	public Instruction encodeByteMap(ByteMap p, Instruction next, Instruction failjump) {
 		return new IByteMap(p, next);
 	}
 
 	public Instruction encodeFail(Expression p) {
-		return new IFail(p);
+//		return new IFail(p);
+		return this.commonFailure;
 	}
 	
-	public final Instruction encodeOption(Option p, Instruction next) {
+	public Instruction encodeOption(Option p, Instruction next) {
 		Instruction pop = new IFailPop(p, next);
-		return new IFailPush(p, next, encodeExpression(p.get(0), pop));
+		return new IFailPush(p, next, encodeExpression(p.get(0), pop, next));
 	}
 	
-	public final Instruction encodeRepetition(Repetition p, Instruction next) {
+	public Instruction encodeRepetition(Repetition p, Instruction next) {
 		IFailSkip skip = p.possibleInfiniteLoop ? new IFailCheckSkip(p) : new IFailCheckSkip(p);
-		Instruction start = encodeExpression(p.get(0), skip);
+		Instruction start = encodeExpression(p.get(0), skip, next/*FIXME*/);
 		skip.next = start;
 		return new IFailPush(p, next, start);
 	}
 
-	public final Instruction encodeRepetition1(Repetition1 p, Instruction next) {
-		return encodeExpression(p.get(0), this.encodeRepetition(p, next));
+	public Instruction encodeRepetition1(Repetition1 p, Instruction next, Instruction failjump) {
+		return encodeExpression(p.get(0), this.encodeRepetition(p, next), failjump);
 	}
 
-	public final Instruction encodeAnd(And p, Instruction next) {
-		Instruction inner = encodeExpression(p.get(0), new IPosBack(p, next));
+	public Instruction encodeAnd(And p, Instruction next, Instruction failjump) {
+		Instruction inner = encodeExpression(p.get(0), new IPosBack(p, next), failjump);
 		return new IPosPush(p, inner);
 	}
 
-	public final Instruction encodeNot(Not p, Instruction next) {
+	public Instruction encodeNot(Not p, Instruction next, Instruction failjump) {
 		Instruction fail = new IFailPop(p, new IFail(p));
-		return new INotFailPush(p, next, encodeExpression(p.get(0), fail));
+		return new INotFailPush(p, next, encodeExpression(p.get(0), fail, failjump));
 	}
 
-	public final Instruction encodeSequence(Expression p, Instruction next) {
+	public Instruction encodeSequence(Expression p, Instruction next, Instruction failjump) {
 		Instruction nextStart = next;
 		for(int i = p.size() -1; i >= 0; i--) {
 			Expression e = p.get(i);
-			nextStart = encodeExpression(e, nextStart);
+			nextStart = encodeExpression(e, nextStart, failjump);
 		}
 		return nextStart;
 	}
 
-	public final Instruction encodeChoice(Choice p, Instruction next) {
-		Instruction nextChoice = encodeExpression(p.get(p.size()-1), next);
+	public Instruction encodeChoice(Choice p, Instruction next, Instruction failjump) {
+		Instruction nextChoice = encodeExpression(p.get(p.size()-1), next, failjump);
 		for(int i = p.size() -2; i >= 0; i--) {
 			Expression e = p.get(i);
-			nextChoice = new IFailPush(e, nextChoice, encodeExpression(e, new IFailPop(e, next)));
+			nextChoice = new IFailPush(e, nextChoice, encodeExpression(e, new IFailPop(e, next), failjump));
 		}
 		return nextChoice;
 	}
 
-	public final Instruction encodeNonTerminal(NonTerminal p, Instruction next) {
+	public Instruction encodeNonTerminal(NonTerminal p, Instruction next, Instruction failjump) {
 		Production r = p.getProduction();
 //		Expression pp = p.optimize(option);
 //		if(pp instanceof ByteChar || pp instanceof ByteMap || pp instanceof AnyChar) {
@@ -163,7 +239,7 @@ public class NezCompiler1 extends NezCompiler {
 	
 	// AST Construction
 	
-	public final Instruction encodeLink(Link p, Instruction next) {
+	public Instruction encodeLink(Link p, Instruction next, Instruction failjump) {
 		if(this.enableASTConstruction()) {
 //			if(this.enablePackratParsing()) {
 //				Expression inner = Factory.resolveNonTerminal(p.get(0));
@@ -179,9 +255,9 @@ public class NezCompiler1 extends NezCompiler {
 //					return newLookupNode(p, IMonitoredSwitch.dummyMonitor, m, inside, next, new IMemoizeFail(p, IMonitoredSwitch.dummyMonitor, m));
 //				}
 //			}
-			return new INodePush(p, encodeExpression(p.get(0), new INodeStore(p, next)));
+			return new INodePush(p, encodeExpression(p.get(0), new INodeStore(p, next), failjump));
 		}
-		return encodeExpression(p.get(0), next);
+		return encodeExpression(p.get(0), next, failjump);
 	}
 
 //	private Instruction newLookupNode(Link e, IMonitoredSwitch monitor, MemoPoint m, Instruction next, Instruction skip, Instruction failjump) {
@@ -198,66 +274,67 @@ public class NezCompiler1 extends NezCompiler {
 //		return new IMemoizeNode(e, monitor, m, next);
 //	}
 
-	public final Instruction encodeNew(New p, Instruction next) {
+	public Instruction encodeNew(New p, Instruction next) {
 		if(this.enableASTConstruction()) {
 			return p.lefted ? new ILeftNew(p, next) : new INew(p, next);
 		}
 		return next;
 	}
 
-	public final Instruction encodeCapture(Capture p, Instruction next) {
+	public Instruction encodeCapture(Capture p, Instruction next) {
 		if(this.enableASTConstruction()) {
 			return new ICapture(p, next);
 		}
 		return next;
 	}
 	
-	public final Instruction encodeTagging(Tagging p, Instruction next) {
+	public Instruction encodeTagging(Tagging p, Instruction next) {
 		if(this.enableASTConstruction()) {
 			return new ITag(p, next);
 		}
 		return next;
 	}
 
-	public final Instruction encodeReplace(Replace p, Instruction next) {
+	public Instruction encodeReplace(Replace p, Instruction next) {
 		if(this.enableASTConstruction()) {
 			return new IReplace(p, next);
 		}
 		return next;
 	}
 	
-	public final Instruction encodeBlock(Block p, Instruction next) {
+	public Instruction encodeBlock(Block p, Instruction next, Instruction failjump) {
 		Instruction failed = new ITablePop(p, new IFail(p));
-		Instruction inner = encodeExpression(p.get(0), new IFailPop(p, new ITablePop(p, next)));
+		Instruction inner = encodeExpression(p.get(0), new IFailPop(p, new ITablePop(p, next)), failjump);
 		return new ITablePush(p, new IFailPush(p, failed, inner));
 	}
 	
-	public final Instruction encodeDefSymbol(DefSymbol p, Instruction next) {
-		Instruction inner = encodeExpression(p.get(0), new IDefSymbol(p, next));
+	public Instruction encodeDefSymbol(DefSymbol p, Instruction next, Instruction failjump) {
+		Instruction inner = encodeExpression(p.get(0), new IDefSymbol(p, next), failjump);
 		return new IPosPush(p, inner);
 	}
 	
-	public final Instruction encodeIsSymbol(IsSymbol p, Instruction next) {
-		Instruction inner = encodeExpression(p.getSymbolExpression(), new IIsSymbol(p, p.checkLastSymbolOnly, next));
+	public Instruction encodeIsSymbol(IsSymbol p, Instruction next, Instruction failjump) {
+		Instruction inner = encodeExpression(p.getSymbolExpression(), new IIsSymbol(p, p.checkLastSymbolOnly, next), failjump);
 		return new IPosPush(p, inner);
 	}
 	
-	public final Instruction encodeDefIndent(DefIndent p, Instruction next) {
+	public Instruction encodeDefIndent(DefIndent p, Instruction next, Instruction failjump) {
 		return new IDefIndent(p, next);
 	}
 	
-	public final Instruction encodeIsIndent(IsIndent p, Instruction next) {
+	public Instruction encodeIsIndent(IsIndent p, Instruction next, Instruction failjump) {
 		return new IIsIndent(p, next);
 	}
 
-	public Instruction encodeExistsSymbol(ExistsSymbol existsSymbol, Instruction next) {
+	public Instruction encodeExistsSymbol(ExistsSymbol existsSymbol, Instruction next, Instruction failjump) {
 		// TODO Auto-generated method stub
 		return next;
 	}
 
-	public Instruction encodeLocalTable(LocalTable localTable, Instruction next) {
+	public Instruction encodeLocalTable(LocalTable localTable, Instruction next, Instruction failjump) {
 		// TODO Auto-generated method stub
 		return next;
 	}
+
 
 }

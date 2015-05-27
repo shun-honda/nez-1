@@ -2,10 +2,10 @@ package nez.lang;
 
 import nez.ast.SourcePosition;
 import nez.ast.Tag;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
 import nez.util.UList;
 import nez.util.UMap;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class LocalTable extends Unary {
 	public final Tag tableName;
@@ -41,7 +41,7 @@ public class LocalTable extends Unary {
 	}
 
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeLocalTable(this);
 	}
 	
@@ -67,8 +67,8 @@ public class LocalTable extends Unary {
 	}
 		
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
-		return bc.encodeLocalTable(this, next);
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+		return bc.encodeLocalTable(this, next, failjump);
 	}
 
 	@Override

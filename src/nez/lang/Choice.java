@@ -3,11 +3,11 @@ package nez.lang;
 import java.util.TreeMap;
 
 import nez.ast.SourcePosition;
-import nez.runtime.Instruction;
-import nez.runtime.NezCompiler;
 import nez.util.UFlag;
 import nez.util.UList;
 import nez.util.UMap;
+import nez.vm.Instruction;
+import nez.vm.NezCompiler;
 
 public class Choice extends Multinary {
 	Choice(SourcePosition s, UList<Expression> l, int size) {
@@ -22,7 +22,7 @@ public class Choice extends Multinary {
 		return "/";
 	}
 	@Override
-	public Expression reshape(Manipulator m) {
+	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeChoice(this);
 	}
 	
@@ -73,12 +73,12 @@ public class Choice extends Multinary {
 	}
 
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next) {
-		return bc.encodeChoice(this, next);
+	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+		return bc.encodeChoice(this, next, failjump);
 	}
 	
 	// optimize
-	public Expression[] matchCase = null;
+	public Expression[] predictedCase = null;
 //	boolean selfChoice = false;
 //	int startIndex = -1;
 //	int endIndex = 257;
@@ -94,11 +94,11 @@ public class Choice extends Multinary {
 			}
 		}
 		if(UFlag.is(option, Grammar.Prediction) && !UFlag.is(option, Grammar.DFA)) {
-			Expression fails = Factory.newFailure(s);
-			this.matchCase = new Expression[257];
+			Expression fails = GrammarFactory.newFailure(s);
+			this.predictedCase = new Expression[257];
 			for(int ch = 0; ch <= 256; ch++) {
 				Expression selected = selectChoice(ch, fails, option);
-				matchCase[ch] = selected;
+				predictedCase[ch] = selected;
 			}
 		}
 	}
@@ -106,7 +106,7 @@ public class Choice extends Multinary {
 	public final Choice flatten() {
 		UList<Expression> l = new UList<Expression>(new Expression[2]);
 		flatten(this, l);
-		Expression e = Factory.newChoice(s, l);
+		Expression e = GrammarFactory.newChoice(s, l);
 		//System.out.println("Flatten: " + this + "\n => " + e);
 		if(e instanceof Choice) {
 			return (Choice)e;
@@ -116,7 +116,7 @@ public class Choice extends Multinary {
 
 	private void flatten(Choice p, UList<Expression> l) {
 		for(Expression e: p) {
-			e = Factory.resolveNonTerminal(e);
+			e = GrammarFactory.resolveNonTerminal(e);
 			if(e instanceof Choice) {
 				flatten((Choice)e, l);
 			}
@@ -140,7 +140,7 @@ public class Choice extends Multinary {
 			}
 			return null;
 		}
-		return (ByteMap)Factory.newByteMap(s, byteMap);
+		return (ByteMap)GrammarFactory.newByteMap(s, byteMap);
 	}
 	
 	private Expression selectChoice(int ch, Expression failed, int option) {
@@ -149,12 +149,12 @@ public class Choice extends Multinary {
 		if(l.size() == 0) {
 			return failed;
 		}
-		return Factory.newChoice(s, l);
+		return GrammarFactory.newChoice(s, l);
 	}
 
 	private void selectChoice(int ch, Expression failed, UList<Expression> l, int option) {
 		for(Expression e : this) {
-			e = Factory.resolveNonTerminal(e);
+			e = GrammarFactory.resolveNonTerminal(e);
 			if(e instanceof Choice) {
 				((Choice)e).selectChoice(ch, failed, l, option);
 			}
