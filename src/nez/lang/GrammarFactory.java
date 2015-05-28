@@ -26,7 +26,7 @@ public class GrammarFactory {
 			Expression u = uniqueMap.get(key);
 			if(u == null) {
 				u = e;
-				e.s = null;
+				//e.s = null;
 				e.internId = uniqueMap.size() + 1;
 				uniqueMap.put(key, e);
 			}

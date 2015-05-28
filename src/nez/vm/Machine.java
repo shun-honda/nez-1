@@ -19,6 +19,10 @@ public class Machine {
 		return result;
 	}
 
+	public static Instruction runDebugger(Instruction code, SourceContext sc) throws TerminationException {
+		return code.exec(sc);
+	}
+
 	public static boolean debug(Instruction code, SourceContext sc) {
 		boolean result = false;
 		String u = "Start";

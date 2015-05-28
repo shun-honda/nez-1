@@ -115,7 +115,7 @@ public class Grammar {
 		this.defaultMemoTable = memoTable;
 	}
 	
-	private MemoTable getMemoTable(SourceContext sc) {
+	public MemoTable getMemoTable(SourceContext sc) {
 		if(memoPointSize == 0) {
 			return MemoTable.newNullTable(sc.length(), this.windowSize, this.memoPointSize);
 		}

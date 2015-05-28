@@ -59,6 +59,10 @@ public abstract class Instruction {
 	public final String getName() {
 		return this.getClass().getSimpleName();
 	}
+	
+	public final Expression getExpression() {
+		return this.e;
+	}
 
 	protected String getOperand() {
 		return null;

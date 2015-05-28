@@ -101,6 +101,7 @@ public class GrammarChecker {
 			r.reshape(new Typestate(this));
 		}		
 		// interning
+		GrammarFactory.uniqueMap.clear();
 		for(Production r: grammar.getRuleList()) {
 			if(r.isTerminal) {
 				continue;

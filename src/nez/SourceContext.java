@@ -120,6 +120,10 @@ public abstract class SourceContext extends Context {
 	public final String formatPositionMessage(String messageType, long pos, String message) {
 		return "(" + this.getResourceName() + ":" + this.linenum(pos) + ") [" + messageType +"] " + message;
 	}
+	
+	public final String formatPositionLine(long pos) {
+		return this.getTextAround(pos, "\n ");
+	}
 
 	@Override
 	public final String formatPositionLine(String messageType, long pos, String message) {

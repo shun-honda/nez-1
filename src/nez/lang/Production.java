@@ -65,7 +65,9 @@ public class Production extends Expression {
 		return this.isRecursive;
 	}
 
-
+	public String toString() {
+		return this.getLocalName() + " = " + this.body;
+	}
 	
 	@Override
 	public Expression get(int index) {

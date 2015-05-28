@@ -7,4 +7,8 @@ public class TerminationException extends Exception {
 		super();
 		this.status = status;
 	}
+
+	public boolean getStatus() {
+		return this.status;
+	}
 }
