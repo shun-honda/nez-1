@@ -240,6 +240,7 @@ public class Grammar {
 											| Specialization | Prediction /* | Tracing */;
 	public final static int SafeOption = ASTConstruction | Optimization;
 	public final static int ExampleOption = Optimization | Specialization | Inlining | CommonPrefix | Prediction;
+	public final static int DebugOption = ASTConstruction;
 	
 	public final static int mask(int m) {
 		return Binary & m;

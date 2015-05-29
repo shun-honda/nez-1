@@ -1,4 +1,4 @@
-package nez.debugger;
+package nez.vm;
 
 import nez.SourceContext;
 import nez.ast.CommonTree;
@@ -11,9 +11,11 @@ import nez.main.Recorder;
 import nez.util.ConsoleUtils;
 
 public class NezDebuggerCommand extends Command {
+	public static boolean isDebug = false;
 
 	@Override
 	public void exec(CommandConfigure config) {
+		NezDebuggerCommand.isDebug = true;
 		Command.displayVersion();
 		Recorder rec = config.getRecorder();
 		Grammar peg = config.getGrammar();

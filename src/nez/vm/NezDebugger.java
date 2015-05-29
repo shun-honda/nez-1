@@ -1,4 +1,4 @@
-package nez.debugger;
+package nez.vm;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,23 +7,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Stack;
 
 import nez.SourceContext;
-import nez.ast.CommonTree;
-import nez.ast.CommonTreeFactory;
-import nez.ast.CommonTreeWriter;
 import nez.ast.ParsingFactory;
 import nez.lang.Expression;
 import nez.lang.Grammar;
 import nez.lang.NonTerminal;
 import nez.lang.Production;
-import nez.main.Command;
-import nez.main.CommandConfigure;
-import nez.main.Recorder;
-import nez.vm.Context;
-import nez.vm.Instruction;
-import nez.vm.Machine;
-import nez.vm.TerminationException;
 import nez.util.ConsoleUtils;
 
 public class NezDebugger extends NezDebugExecuter {
@@ -51,16 +42,6 @@ public class NezDebugger extends NezDebugExecuter {
 		}
 	}
 	
-	class CommandStatus {
-		boolean isStepOver = false;
-		boolean isProductionStepOver = false;
-		boolean isStepIn = false;
-		boolean isStepOut = false;
-		boolean isExec = false;
-	}
-	
-	CommandStatus status = new CommandStatus();
-	
 	public Object parse(SourceContext sc, ParsingFactory treeFactory) {
 		this.sc = sc;
 		long startPosition = sc.getPosition();
@@ -75,46 +56,26 @@ public class NezDebugger extends NezDebugExecuter {
 		return treeFactory.commit(node);
 	}
 	
+	boolean result = false;
 	public boolean run() {
 		code = peg.compile();
 		sc.initJumpStack(64, peg.getMemoTable(sc));
 		for(Production p : peg.getProductionList()) {
 			ruleMap.put(p.getLocalName(), p);
 		}
-		this.exec();
-		boolean result = false;
 		try {
 			Expression e = null;
+			this.exec();
 			while(true) {
-				if(e != code.getExpression() && !(code.getExpression() instanceof Production)) {
-					e = code.getExpression();
-					if(status.isStepOver) {
-						status.isStepOver = false;
-						if(e instanceof NonTerminal) {
-							status.isProductionStepOver = true;
-						}
-						else {
-							this.exec();
-						}
-					}
-					else if(status.isStepIn) {
-						status.isStepOver = false;
-						this.exec();
-					}
-					else if(status.isExec) {
-						status.isExec = false;
-						this.exec();
-					}
-				}
+				e = code.getExpression();
 				if(e instanceof NonTerminal) {
 					if(this.breakPointMap.containsKey(((NonTerminal)e).getLocalName())) {
-						status.isExec = true;
+						this.exec();
 					}
 				}
 				else if(e instanceof Production) {
-					if(status.isStepOut) {
-						status.isStepOut = false;
-						status.isExec = true;
+					if(this.breakPointMap.containsKey(((Production)e).getLocalName())) {
+						this.exec();
 					}
 				}
 				code = Machine.runDebugger(code, sc);
@@ -126,7 +87,7 @@ public class NezDebugger extends NezDebugExecuter {
 		return result;
 	}
 	
-	public void exec() {
+	public void exec() throws TerminationException {
 		showCurrentExpression();
 		while(readLine("(nezdb) ")) {
 			System.out.println("command: " + command.type.name());
@@ -298,31 +259,75 @@ public class NezDebugger extends NezDebugExecuter {
 	}
 
 	@Override
-	public boolean exec(StepOver o) {
-		status.isStepOver = true;
-		return false;
+	public boolean exec(StepOver o) throws TerminationException {
+		Expression e = code.getExpression();
+		Expression current = code.getExpression();
+		if(e instanceof NonTerminal) {
+			int count = 0;
+			while(true) {
+				code = Machine.runDebugger(code, sc);
+				current = code.getExpression();
+				if(code instanceof ICallPush) {
+					count++;
+				}
+				else if(code instanceof IRet) {
+					count--;
+					if(count == 0) {
+						code = Machine.runDebugger(code, sc);
+						return true;
+					}
+				}
+			}
+		}
+		while(e.getId() == current.getId()) {
+			code = Machine.runDebugger(code, sc);
+			current = code.getExpression();
+		}
+		while((current instanceof Production)) {
+			code = Machine.runDebugger(code, sc);
+			current = code.getExpression();
+		}
+		return true;
 	}
 
 	@Override
 	public boolean exec(StepIn o) {
-		status.isStepIn = true;
 		return false;
 	}
 
 	@Override
 	public boolean exec(StepOut o) {
-		status.isStepOut = true;
 		return false;
 	}
 
 	@Override
-	public boolean exec(Continue o) {
-		return false;
+	public boolean exec(Continue o) throws TerminationException {
+		while(true) {
+			Expression e = code.getExpression();
+			if(e instanceof Production) {
+				if(this.breakPointMap.containsKey(((Production)e).getLocalName())) {
+					code = Machine.runDebugger(code, sc);
+					return true;
+				}
+			}
+			code = Machine.runDebugger(code, sc);
+			current = code.getExpression();
+		}
 	}
 
 	@Override
-	public boolean exec(Run o) {
-		return false;
+	public boolean exec(Run o) throws TerminationException {
+		while(true) {
+			Expression e = code.getExpression();
+			if(e instanceof Production) {
+				if(this.breakPointMap.containsKey(((Production)e).getLocalName())) {
+					code = Machine.runDebugger(code, sc);
+					return true;
+				}
+			}
+			code = Machine.runDebugger(code, sc);
+			current = code.getExpression();
+		}
 	}
 
 	@Override

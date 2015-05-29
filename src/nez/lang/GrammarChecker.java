@@ -7,6 +7,7 @@ import nez.main.Verbose;
 import nez.util.ConsoleUtils;
 import nez.util.UList;
 import nez.util.UMap;
+import nez.vm.NezDebuggerCommand;
 
 public class GrammarChecker {
 	
@@ -101,15 +102,21 @@ public class GrammarChecker {
 			r.reshape(new Typestate(this));
 		}		
 		// interning
-		GrammarFactory.uniqueMap.clear();
-		for(Production r: grammar.getRuleList()) {
-			if(r.isTerminal) {
-				continue;
+		if(NezDebuggerCommand.isDebug) {
+			for(Production r: grammar.getRuleList()) {
+				GrammarFactory.setId(r.body);
 			}
-			if(Verbose.Grammar) {
-				r.dump();
+		}
+		else {
+			for(Production r: grammar.getRuleList()) {
+				if(r.isTerminal) {
+					continue;
+				}
+				if(Verbose.Grammar) {
+					r.dump();
+				}
+				r.internRule();
 			}
-			r.internRule();
 		}
 //		if(this.foundFlag) {
 //			TreeMap<String,String> undefedFlags = new TreeMap<String,String>();

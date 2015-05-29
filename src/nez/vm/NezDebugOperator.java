@@ -1,4 +1,4 @@
-package nez.debugger;
+package nez.vm;
 
 import nez.util.ConsoleUtils;
 
@@ -14,7 +14,7 @@ public abstract class NezDebugOperator {
 		this.code = code;
 	}
 	
-	public abstract boolean exec(NezDebugExecuter d);
+	public abstract boolean exec(NezDebugExecuter d) throws TerminationException;
 	
 	public String toString() {
 		return this.type.toString();
@@ -75,7 +75,7 @@ class StepOver extends NezDebugOperator {
 	}
 
 	@Override
-	public boolean exec(NezDebugExecuter d) {
+	public boolean exec(NezDebugExecuter d) throws TerminationException {
 		return d.exec(this);
 	}	
 }
@@ -87,7 +87,7 @@ class StepIn extends NezDebugOperator {
 	}
 
 	@Override
-	public boolean exec(NezDebugExecuter d) {
+	public boolean exec(NezDebugExecuter d) throws TerminationException {
 		return d.exec(this);
 	}
 }
@@ -99,7 +99,7 @@ class StepOut extends NezDebugOperator {
 	}
 
 	@Override
-	public boolean exec(NezDebugExecuter d) {
+	public boolean exec(NezDebugExecuter d) throws TerminationException {
 		return d.exec(this);
 	}
 }
@@ -111,7 +111,7 @@ class Continue extends NezDebugOperator {
 	}
 
 	@Override
-	public boolean exec(NezDebugExecuter d) {
+	public boolean exec(NezDebugExecuter d) throws TerminationException {
 		return d.exec(this);
 	}
 }
@@ -123,7 +123,7 @@ class Run extends NezDebugOperator {
 	}
 
 	@Override
-	public boolean exec(NezDebugExecuter d) {
+	public boolean exec(NezDebugExecuter d) throws TerminationException {
 		return d.exec(this);
 	}
 }

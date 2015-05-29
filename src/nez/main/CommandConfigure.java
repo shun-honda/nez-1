@@ -83,6 +83,9 @@ public class CommandConfigure {
 			if(!args[0].startsWith("-")) {
 				CommandName = args[0];
 				index = 1;
+				if(CommandName.equals("debug")) {
+					this.GrammarOption = Grammar.DebugOption;
+				}
 			}
 		}
 		while (index < args.length) {

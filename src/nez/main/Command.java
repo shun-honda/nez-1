@@ -92,7 +92,7 @@ public abstract class Command {
 		load("check", "nez.main.CheckCommand");
 		load("parse", "nez.main.ParseCommand");
 		load("type", "nez.x.TypeCommand");
-		load("debug", "nez.debugger.NezDebuggerCommand");
+		load("debug", "nez.vm.NezDebuggerCommand");
 //		load("find", "nez.main.FindCommand");
 		load("shell", "nez.main.NezInteractiveParser");
 //		load("dtd", "nez.x.DTDCommand");
