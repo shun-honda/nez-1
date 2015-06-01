@@ -12,6 +12,7 @@ import nez.SourceContext;
 import nez.ast.ParsingFactory;
 import nez.lang.Expression;
 import nez.lang.Grammar;
+import nez.lang.Link;
 import nez.lang.NonTerminal;
 import nez.lang.Production;
 import nez.util.ConsoleUtils;
@@ -105,7 +106,6 @@ public class NezDebugger extends NezDebugExecuter {
 	public void exec() throws TerminationException {
 		showCurrentExpression();
 		while (readLine("(nezdb) ")) {
-			System.out.println("command: " + command.type.name());
 			if(!command.exec(this)) {
 				return;
 			}
@@ -117,7 +117,7 @@ public class NezDebugger extends NezDebugExecuter {
 
 	public void showCurrentExpression() {
 		Expression e = code.getExpression();
-		if(running && current != e) {
+		if(running) {
 			if(e.getSourcePosition() == null) {
 				ConsoleUtils.println(e.toString());
 			}
@@ -152,7 +152,9 @@ public class NezDebugger extends NezDebugExecuter {
 				}
 				pos++;
 			}
-			p.setCode(tokens[pos]);
+			if(pos < tokens.length) {
+				p.setCode(tokens[pos]);
+			}
 			this.command = p;
 		}
 		else if(command.equals("b") || command.equals("break")) {
@@ -217,8 +219,29 @@ public class NezDebugger extends NezDebugExecuter {
 	@Override
 	public boolean exec(Print o) {
 		if(o.type == Print.printContext) {
-			if(o.code.equals("pos")) {
-				ConsoleUtils.println(sc.formatPositionLine(((Context) sc).getPosition()));
+			Context ctx = (Context) sc;
+			if(o.code == null) {
+				ConsoleUtils.println("context {");
+				ConsoleUtils.println("  input_name = " + ctx.getResourceName());
+				ConsoleUtils.println("  pos = " + ctx.getPosition());
+				Object obj = ctx.getParsingObject();
+				if(obj == null) {
+					ConsoleUtils.println("  left = " + ctx.getParsingObject());
+				}
+				else {
+					ConsoleUtils.println("  left = " + ctx.getParsingObject().hashCode());
+				}
+				ConsoleUtils.println("}");
+			}
+			else if(o.code.equals("pos")) {
+				ConsoleUtils.println("pos = " + ctx.getPosition());
+				ConsoleUtils.println(sc.formatDebugPositionMessage(((Context) sc).getPosition()));
+			}
+			else if(o.code.equals("input_name")) {
+				ConsoleUtils.println("input_name = " + ctx.getResourceName());
+			}
+			else if(o.code.equals("left")) {
+				ConsoleUtils.println("left = " + ctx.getParsingObject());
 			}
 			else {
 				ConsoleUtils.println("error: no member nameed \'" + o.code + "\' in context");
@@ -287,6 +310,17 @@ public class NezDebugger extends NezDebugExecuter {
 				current = code.getExpression();
 			}
 		}
+		else if(e instanceof Link) {
+			code = exec_code();
+			int stackTop = ((Context) sc).getUsedStackTop();
+			if(code.getExpression() instanceof Production) {
+				code = exec_code();
+				while (stackTop <= ((Context) sc).getUsedStackTop()) {
+					code = exec_code();
+					current = code.getExpression();
+				}
+			}
+		}
 		else {
 			while (e.getId() == current.getId()) {
 				code = exec_code();
@@ -318,9 +352,9 @@ public class NezDebugger extends NezDebugExecuter {
 	@Override
 	public boolean exec(StepOut o) throws TerminationException {
 		Expression current = code.getExpression();
-		code = exec_code();
 		int stackTop = ((Context) sc).getUsedStackTop();
-		while (stackTop < ((Context) sc).getUsedStackTop()) {
+		code = exec_code();
+		while (stackTop <= ((Context) sc).getUsedStackTop()) {
 			code = exec_code();
 			current = code.getExpression();
 		}

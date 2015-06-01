@@ -2,11 +2,9 @@ package nez;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URL;
 
 import nez.io.FileContext;
 import nez.io.StringContext;
@@ -14,29 +12,32 @@ import nez.util.StringUtils;
 import nez.vm.Context;
 
 public abstract class SourceContext extends Context {
-	
-	private String     fileName;
-	protected long     startLineNum = 1;
+
+	private String fileName;
+	protected long startLineNum = 1;
 
 	protected SourceContext(String fileName, long linenum) {
 		this.fileName = fileName;
 		this.startLineNum = linenum;
 	}
-	
+
 	@Override
-	public abstract int     byteAt(long pos);
+	public abstract int byteAt(long pos);
+
 	@Override
-	public abstract long    length();
+	public abstract long length();
 
 	@Override
 	public abstract boolean match(long pos, byte[] text);
+
 	@Override
-	public abstract String  substring(long startIndex, long endIndex);
+	public abstract String substring(long startIndex, long endIndex);
+
 	@Override
-	public abstract long    linenum(long pos);
+	public abstract long linenum(long pos);
 
 	/* handling input stream */
-	
+
 	@Override
 	public final String getResourceName() {
 		return fileName;
@@ -53,7 +54,7 @@ public abstract class SourceContext extends Context {
 	public final int charAt(long pos) {
 		int c = byteAt(pos), c2, c3, c4;
 		int len = StringUtils.lengthOfUtf8(c);
-		switch(len) {
+		switch (len) {
 		case 1:
 			return c;
 		case 2:
@@ -87,7 +88,7 @@ public abstract class SourceContext extends Context {
 		if(startIndex < 0) {
 			startIndex = 0;
 		}
-		while(startIndex > 0) {
+		while (startIndex > 0) {
 			int ch = byteAt(startIndex);
 			if(ch == '\n') {
 				startIndex = startIndex + 1;
@@ -106,7 +107,7 @@ public abstract class SourceContext extends Context {
 			int ch = this.byteAt(i);
 			if(ch != ' ' && ch != '\t') {
 				if(i + 1 != fromPosition) {
-					for(long j = i;j < fromPosition; j++) {
+					for(long j = i; j < fromPosition; j++) {
 						indent = indent + " ";
 					}
 				}
@@ -118,10 +119,14 @@ public abstract class SourceContext extends Context {
 	}
 
 	public final String formatPositionMessage(String messageType, long pos, String message) {
-		return "(" + this.getResourceName() + ":" + this.linenum(pos) + ") [" + messageType +"] " + message;
+		return "(" + this.getResourceName() + ":" + this.linenum(pos) + ") [" + messageType + "] " + message;
 	}
-	
+
 	public final String formatPositionLine(long pos) {
+		return this.getTextAround(pos, "\n ");
+	}
+
+	public final String formatDebugPositionMessage(long pos) {
 		return this.getTextAround(pos, "\n ");
 	}
 
@@ -135,11 +140,11 @@ public abstract class SourceContext extends Context {
 		if(pos < 0) {
 			pos = 0;
 		}
-		while(this.byteAt(pos) == this.EOF() && pos > 0) {
+		while (this.byteAt(pos) == this.EOF() && pos > 0) {
 			pos -= 1;
 		}
 		long startIndex = pos;
-		while(startIndex > 0) {
+		while (startIndex > 0) {
 			ch = byteAt(startIndex);
 			if(ch == '\n' && pos - startIndex > 0) {
 				startIndex = startIndex + 1;
@@ -152,7 +157,7 @@ public abstract class SourceContext extends Context {
 		}
 		long endIndex = pos + 1;
 		if(endIndex < this.length()) {
-			while((ch = byteAt(endIndex)) != this.EOF()) {
+			while ((ch = byteAt(endIndex)) != this.EOF()) {
 				if(ch == '\n' || endIndex - startIndex > 78 && ch < 128) {
 					break;
 				}
@@ -185,7 +190,7 @@ public abstract class SourceContext extends Context {
 				}
 			}
 			else {
-				source.append((char)ch);
+				source.append((char) ch);
 				if(i == pos) {
 					marker.append("^");
 				}
@@ -196,7 +201,7 @@ public abstract class SourceContext extends Context {
 		}
 		return delim + source.toString() + delim + marker.toString();
 	}
-	
+
 	public final static SourceContext newStringContext(String str) {
 		return new StringContext(str);
 	}
@@ -216,10 +221,10 @@ public abstract class SourceContext extends Context {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(Stream));
 			StringBuilder builder = new StringBuilder();
 			String line = reader.readLine();
-			while(true) {
+			while (true) {
 				builder.append(line);
 				line = reader.readLine();
-				if (line == null) {
+				if(line == null) {
 					break;
 				}
 				builder.append("\n");
@@ -230,5 +235,3 @@ public abstract class SourceContext extends Context {
 		return new FileContext(fileName);
 	}
 }
-
-
