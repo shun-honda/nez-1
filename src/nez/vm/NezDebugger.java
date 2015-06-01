@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Stack;
 
 import nez.SourceContext;
 import nez.ast.ParsingFactory;
@@ -27,21 +26,21 @@ public class NezDebugger extends NezDebugExecuter {
 	String text = null;
 	int linenum = 0;
 	boolean running = false;
-	
+
 	public NezDebugger(Grammar peg) {
 		this.peg = peg;
 	}
-	
+
 	class BreakPoint {
 		Production pr;
 		Integer id;
-		
+
 		public BreakPoint(Production pr, int id) {
 			this.pr = pr;
 			this.id = id;
 		}
 	}
-	
+
 	public Object parse(SourceContext sc, ParsingFactory treeFactory) {
 		this.sc = sc;
 		long startPosition = sc.getPosition();
@@ -55,8 +54,9 @@ public class NezDebugger extends NezDebugExecuter {
 		}
 		return treeFactory.commit(node);
 	}
-	
+
 	boolean result = false;
+
 	public boolean run() {
 		code = peg.compile();
 		sc.initJumpStack(64, peg.getMemoTable(sc));
@@ -66,30 +66,45 @@ public class NezDebugger extends NezDebugExecuter {
 		try {
 			Expression e = null;
 			this.exec();
-			while(true) {
+			while (true) {
 				e = code.getExpression();
 				if(e instanceof NonTerminal) {
-					if(this.breakPointMap.containsKey(((NonTerminal)e).getLocalName())) {
+					if(this.breakPointMap.containsKey(((NonTerminal) e).getLocalName())) {
 						this.exec();
 					}
 				}
 				else if(e instanceof Production) {
-					if(this.breakPointMap.containsKey(((Production)e).getLocalName())) {
+					if(this.breakPointMap.containsKey(((Production) e).getLocalName())) {
 						this.exec();
 					}
 				}
 				code = Machine.runDebugger(code, sc);
 			}
-		}
-		catch (TerminationException e) {
+		} catch (TerminationException e) {
 			result = e.getStatus();
 		}
 		return result;
 	}
-	
+
+	public Instruction exec_code() throws TerminationException {
+		Expression e = code.getExpression();
+		if(e instanceof NonTerminal) {
+			if(this.breakPointMap.containsKey(((NonTerminal) e).getLocalName())) {
+				this.exec();
+			}
+		}
+		else if(e instanceof Production) {
+			if(this.breakPointMap.containsKey(((Production) e).getLocalName())) {
+				code = Machine.runDebugger(code, sc);
+				this.exec();
+			}
+		}
+		return Machine.runDebugger(code, sc);
+	}
+
 	public void exec() throws TerminationException {
 		showCurrentExpression();
-		while(readLine("(nezdb) ")) {
+		while (readLine("(nezdb) ")) {
 			System.out.println("command: " + command.type.name());
 			if(!command.exec(this)) {
 				return;
@@ -97,8 +112,9 @@ public class NezDebugger extends NezDebugExecuter {
 			showCurrentExpression();
 		}
 	}
-	
+
 	Expression current = null;
+
 	public void showCurrentExpression() {
 		Expression e = code.getExpression();
 		if(running && current != e) {
@@ -111,7 +127,7 @@ public class NezDebugger extends NezDebugExecuter {
 			current = e;
 		}
 	}
-	
+
 	private boolean readLine(String prompt) {
 		Object console = ConsoleUtils.getConsoleReader();
 		String line = ConsoleUtils.readSingleLine(console, prompt);
@@ -131,7 +147,7 @@ public class NezDebugger extends NezDebugExecuter {
 				if(tokens[pos].equals("-ctx")) {
 					p.setType(Print.printContext);
 				}
-				else if (tokens[pos].equals("-pr")) {
+				else if(tokens[pos].equals("-pr")) {
 					p.setType(Print.printProduction);
 				}
 				pos++;
@@ -202,7 +218,7 @@ public class NezDebugger extends NezDebugExecuter {
 	public boolean exec(Print o) {
 		if(o.type == Print.printContext) {
 			if(o.code.equals("pos")) {
-				ConsoleUtils.println(sc.formatPositionLine(((Context)sc).getPosition()));
+				ConsoleUtils.println(sc.formatPositionLine(((Context) sc).getPosition()));
 			}
 			else {
 				ConsoleUtils.println("error: no member nameed \'" + o.code + "\' in context");
@@ -225,8 +241,9 @@ public class NezDebugger extends NezDebugExecuter {
 		if(this.command.code != null) {
 			Production rule = ruleMap.get(this.command.code);
 			if(rule != null) {
-				this.breakPointMap.put(rule.getLocalName(), new BreakPoint(rule, this.breakPointMap.size()+1));
-				ConsoleUtils.println("breakpoint " + (this.breakPointMap.size()) + ": where = " + rule.getLocalName() + " " + rule.getSourcePosition().formatSourceMessage("notice", ""));
+				this.breakPointMap.put(rule.getLocalName(), new BreakPoint(rule, this.breakPointMap.size() + 1));
+				ConsoleUtils.println("breakpoint " + (this.breakPointMap.size()) + ": where = " + rule.getLocalName() + " "
+						+ rule.getSourcePosition().formatSourceMessage("notice", ""));
 			}
 			else {
 				ConsoleUtils.println("production not found");
@@ -237,7 +254,7 @@ public class NezDebugger extends NezDebugExecuter {
 		}
 		return true;
 	}
-	
+
 	public void showBreakPointList() {
 		if(this.breakPointMap.isEmpty()) {
 			ConsoleUtils.println("No breakpoints currently set");
@@ -251,7 +268,7 @@ public class NezDebugger extends NezDebugExecuter {
 				}
 			});
 			for(Entry s : mapValuesList) {
-				BreakPoint br = (BreakPoint)s.getValue();
+				BreakPoint br = (BreakPoint) s.getValue();
 				Production rule = (br.pr);
 				ConsoleUtils.println(br.id + ": " + rule.getLocalName() + " " + rule.getSourcePosition().formatSourceMessage("notice", ""));
 			}
@@ -263,49 +280,63 @@ public class NezDebugger extends NezDebugExecuter {
 		Expression e = code.getExpression();
 		Expression current = code.getExpression();
 		if(e instanceof NonTerminal) {
-			int count = 0;
-			while(true) {
-				code = Machine.runDebugger(code, sc);
+			code = exec_code();
+			int stackTop = ((Context) sc).getUsedStackTop();
+			while (stackTop <= ((Context) sc).getUsedStackTop()) {
+				code = exec_code();
 				current = code.getExpression();
-				if(code instanceof ICallPush) {
-					count++;
-				}
-				else if(code instanceof IRet) {
-					count--;
-					if(count == 0) {
-						code = Machine.runDebugger(code, sc);
-						return true;
-					}
-				}
 			}
 		}
-		while(e.getId() == current.getId()) {
-			code = Machine.runDebugger(code, sc);
-			current = code.getExpression();
+		else {
+			while (e.getId() == current.getId()) {
+				code = exec_code();
+				current = code.getExpression();
+			}
 		}
-		while((current instanceof Production)) {
-			code = Machine.runDebugger(code, sc);
+		while ((current instanceof Production)) {
+			code = exec_code();
 			current = code.getExpression();
 		}
 		return true;
 	}
 
 	@Override
-	public boolean exec(StepIn o) {
-		return false;
+	public boolean exec(StepIn o) throws TerminationException {
+		Expression e = code.getExpression();
+		Expression current = code.getExpression();
+		while (e.getId() == current.getId()) {
+			code = exec_code();
+			current = code.getExpression();
+		}
+		while ((current instanceof Production)) {
+			code = exec_code();
+			current = code.getExpression();
+		}
+		return true;
 	}
 
 	@Override
-	public boolean exec(StepOut o) {
-		return false;
+	public boolean exec(StepOut o) throws TerminationException {
+		Expression current = code.getExpression();
+		code = exec_code();
+		int stackTop = ((Context) sc).getUsedStackTop();
+		while (stackTop < ((Context) sc).getUsedStackTop()) {
+			code = exec_code();
+			current = code.getExpression();
+		}
+		while ((current instanceof Production)) {
+			code = exec_code();
+			current = code.getExpression();
+		}
+		return true;
 	}
 
 	@Override
 	public boolean exec(Continue o) throws TerminationException {
-		while(true) {
+		while (true) {
 			Expression e = code.getExpression();
 			if(e instanceof Production) {
-				if(this.breakPointMap.containsKey(((Production)e).getLocalName())) {
+				if(this.breakPointMap.containsKey(((Production) e).getLocalName())) {
 					code = Machine.runDebugger(code, sc);
 					return true;
 				}
@@ -317,10 +348,10 @@ public class NezDebugger extends NezDebugExecuter {
 
 	@Override
 	public boolean exec(Run o) throws TerminationException {
-		while(true) {
+		while (true) {
 			Expression e = code.getExpression();
 			if(e instanceof Production) {
-				if(this.breakPointMap.containsKey(((Production)e).getLocalName())) {
+				if(this.breakPointMap.containsKey(((Production) e).getLocalName())) {
 					code = Machine.runDebugger(code, sc);
 					return true;
 				}
