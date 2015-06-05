@@ -199,64 +199,64 @@ public class DeprecatedNezCompiler extends NezCompiler1 {
 		return new IFail(p);
 	}
 
-	public final boolean isDisjoint(boolean[] dfa, boolean[] dfa2) {
-		for(int i = 0; i < dfa.length; i++) {
-			if(dfa[i] && dfa2[i]) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	public final boolean[] and(boolean[] dfa, boolean[] dfa2) {
-		for(int i = 0; i < dfa.length; i++) {
-			if(dfa[i] && dfa2[i]) {
-				dfa[i] = true;
-			}
-			else {
-				dfa[i] = false;
-			}
-		}
-		return dfa;
-	}
-
-	
-	private boolean[] predictNext(Instruction next) {
-		boolean[] dfa = ByteMap.newMap(true);
-		for(int c = 0; c < dfa.length; c++) {
-			short r = next.isAcceptImpl(c);
-			if(r == Prediction.Reject) {
-				dfa[c] = false;
-			}
-		}
-		return dfa;
-	}
-
-	private boolean[] predictInner(Expression e, boolean[] dfa2) {
-		boolean[] dfa = dfa2.clone();
-		for(int c = 0; c < dfa.length; c++) {
-			short r = e.acceptByte(c, option);
-			if(r == Prediction.Accept) {
-				dfa[c] = true;
-			}
-			if(r == Prediction.Reject) {
-				dfa[c] = false;
-			}		
-		}
-		return dfa;
-	}
-
-	private boolean checkInstruction(Instruction next) {
-		return next instanceof IByteChar || next instanceof IByteMap;
-	}
-
-	private Instruction replaceConsumeInstruction(Instruction inst) {
-		if(inst instanceof IByteChar || inst instanceof IByteMap || inst instanceof IAnyChar) {
-			System.out.println("replaced: " + inst);
-			return new IConsume(inst.e, inst.next);
-		}
-		return inst;
-	}
+//	public final boolean isDisjoint(boolean[] dfa, boolean[] dfa2) {
+//		for(int i = 0; i < dfa.length; i++) {
+//			if(dfa[i] && dfa2[i]) {
+//				return false;
+//			}
+//		}
+//		return true;
+//	}
+//
+//	public final boolean[] and(boolean[] dfa, boolean[] dfa2) {
+//		for(int i = 0; i < dfa.length; i++) {
+//			if(dfa[i] && dfa2[i]) {
+//				dfa[i] = true;
+//			}
+//			else {
+//				dfa[i] = false;
+//			}
+//		}
+//		return dfa;
+//	}
+//
+//	
+//	private boolean[] predictNext(Instruction next) {
+//		boolean[] dfa = ByteMap.newMap(true);
+//		for(int c = 0; c < dfa.length; c++) {
+//			short r = next.isAcceptImpl(c);
+//			if(r == Prediction.Reject) {
+//				dfa[c] = false;
+//			}
+//		}
+//		return dfa;
+//	}
+//
+//	private boolean[] predictInner(Expression e, boolean[] dfa2) {
+//		boolean[] dfa = dfa2.clone();
+//		for(int c = 0; c < dfa.length; c++) {
+//			short r = e.acceptByte(c, option);
+//			if(r == Prediction.Accept) {
+//				dfa[c] = true;
+//			}
+//			if(r == Prediction.Reject) {
+//				dfa[c] = false;
+//			}		
+//		}
+//		return dfa;
+//	}
+//
+//	private boolean checkInstruction(Instruction next) {
+//		return next instanceof IByteChar || next instanceof IByteMap;
+//	}
+//
+//	private Instruction replaceConsumeInstruction(Instruction inst) {
+//		if(inst instanceof IByteChar || inst instanceof IByteMap || inst instanceof IAnyChar) {
+//			System.out.println("replaced: " + inst);
+//			return new IConsume(inst.e, inst.next);
+//		}
+//		return inst;
+//	}
 
 	
 	
@@ -471,171 +471,95 @@ public class DeprecatedNezCompiler extends NezCompiler1 {
 		return nextChoice;
 	}
 
-	public final Instruction encodeNonTerminal(NonTerminal p, Instruction next, Instruction failjump) {
-		Production r = p.getProduction();
-		Expression pp = p.optimize(option);
-		if(pp instanceof ByteChar || pp instanceof ByteMap || pp instanceof AnyChar) {
-			Verbose.noticeOptimize("Inlining", p, pp);
-			return encodeExpression(pp, next, failjump);
-		}
-		if(r.isInline() && UFlag.is(option, Grammar.Inlining)) {
-			Verbose.noticeOptimize("Inlining", p, r.getExpression());
-			return encodeExpression(r.getExpression(), next, failjump);
-		}
-		if(this.enablePackratParsing()) {
-			if(!this.enableASTConstruction() || r.isPurePEG()) {
-				Expression ref = GrammarFactory.resolveNonTerminal(r.getExpression());
-				MemoPoint m = this.issueMemoPoint(r.getUniqueName(), ref);
-				if(m != null) {
-					if(UFlag.is(option, Grammar.Tracing)) {
-						IMonitoredSwitch monitor = new IMonitoredSwitch(p, new ICallPush(p.getProduction(), next));
-						Instruction inside = new ICallPush(r, newMemoize(p, monitor, m, next));
-						monitor.setActivatedNext(newLookup(p, monitor, m, inside, next, newMemoizeFail(p, monitor, m)));
-						return monitor;
-					}
-					Instruction inside = new ICallPush(r, newMemoize(p, IMonitoredSwitch.dummyMonitor, m, next));
-					return newLookup(p, IMonitoredSwitch.dummyMonitor, m, inside, next, newMemoizeFail(p, IMonitoredSwitch.dummyMonitor, m));
-				}
-			}
-		}	
-		return new ICallPush(r, next);
-	}
+//	public final Instruction encodeNonTerminal(NonTerminal p, Instruction next, Instruction failjump) {
+//		Production r = p.getProduction();
+//		Expression pp = p.optimize(option);
+//		if(pp instanceof ByteChar || pp instanceof ByteMap || pp instanceof AnyChar) {
+//			Verbose.noticeOptimize("Inlining", p, pp);
+//			return encodeExpression(pp, next, failjump);
+//		}
+//		if(r.isInline() && UFlag.is(option, Grammar.Inlining)) {
+//			Verbose.noticeOptimize("Inlining", p, r.getExpression());
+//			return encodeExpression(r.getExpression(), next, failjump);
+//		}
+//		if(this.enablePackratParsing()) {
+//			if(!this.enableASTConstruction() || r.isPurePEG()) {
+//				Expression ref = GrammarFactory.resolveNonTerminal(r.getExpression());
+//				MemoPoint m = this.issueMemoPoint(r.getUniqueName(), ref);
+//				if(m != null) {
+//					if(UFlag.is(option, Grammar.Tracing)) {
+//						IMonitoredSwitch monitor = new IMonitoredSwitch(p, new ICallPush(p.getProduction(), next));
+//						Instruction inside = new ICallPush(r, newMemoize(p, monitor, m, next));
+//						monitor.setActivatedNext(newLookup(p, monitor, m, inside, next, newMemoizeFail(p, monitor, m)));
+//						return monitor;
+//					}
+//					Instruction inside = new ICallPush(r, newMemoize(p, IMonitoredSwitch.dummyMonitor, m, next));
+//					return newLookup(p, IMonitoredSwitch.dummyMonitor, m, inside, next, newMemoizeFail(p, IMonitoredSwitch.dummyMonitor, m));
+//				}
+//			}
+//		}	
+//		return new ICallPush(r, next);
+//	}
 	
-	private Instruction newLookup(Expression e, IMonitoredSwitch monitor, MemoPoint m, Instruction next, Instruction skip, Instruction failjump) {
-		if(m.contextSensitive) {
-			return new IStateLookup(e, monitor, m, next, skip, failjump);
-		}
-		return new ILookup(e, monitor, m, next, skip, failjump);
-	}
-
-	private Instruction newMemoize(Expression e, IMonitoredSwitch monitor, MemoPoint m, Instruction next) {
-		if(m.contextSensitive) {
-			return new IStateMemoize(e, monitor, m, next);
-		}
-		return new IMemoize(e, monitor, m, next);
-	}
-
-	private Instruction newMemoizeFail(Expression e, IMonitoredSwitch monitor, MemoPoint m) {
-		if(m.contextSensitive) {
-			return new IStateMemoizeFail(e, monitor, m);
-		}
-		return new IMemoizeFail(e, monitor, m);
-	}
+//	private Instruction newLookup(Expression e, IMonitoredSwitch monitor, MemoPoint m, Instruction next, Instruction skip, Instruction failjump) {
+//		if(m.contextSensitive) {
+//			return new IStateLookup(e, monitor, m, next, skip, failjump);
+//		}
+//		return new ILookup(e, monitor, m, next, skip, failjump);
+//	}
+//
+//	private Instruction newMemoize(Expression e, IMonitoredSwitch monitor, MemoPoint m, Instruction next) {
+//		if(m.contextSensitive) {
+//			return new IStateMemoize(e, monitor, m, next);
+//		}
+//		return new IMemoize(e, monitor, m, next);
+//	}
+//
+//	private Instruction newMemoizeFail(Expression e, IMonitoredSwitch monitor, MemoPoint m) {
+//		if(m.contextSensitive) {
+//			return new IStateMemoizeFail(e, monitor, m);
+//		}
+//		return new IMemoizeFail(e, monitor, m);
+//	}
 
 	
 	// AST Construction
 	
 	public final Instruction encodeLink(Link p, Instruction next, Instruction failjump) {
 		if(this.enableASTConstruction()) {
-			if(this.enablePackratParsing()) {
-				Expression inner = GrammarFactory.resolveNonTerminal(p.get(0));
-				MemoPoint m = this.issueMemoPoint(p.toString(), inner);
-				if(m != null) {
-					if(UFlag.is(option, Grammar.Tracing)) {
-						IMonitoredSwitch monitor = new IMonitoredSwitch(p, encodeExpression(p.get(0), next, failjump));
-						Instruction inside = encodeExpression(p.get(0), newMemoizeNode(p, monitor, m, next), failjump);
-						monitor.setActivatedNext(newLookupNode(p, monitor, m, inside, next, new IMemoizeFail(p, monitor, m)));
-						return monitor;
-					}
-					Instruction inside = encodeExpression(p.get(0), newMemoizeNode(p, IMonitoredSwitch.dummyMonitor, m, next), failjump);
-					return newLookupNode(p, IMonitoredSwitch.dummyMonitor, m, inside, next, new IMemoizeFail(p, IMonitoredSwitch.dummyMonitor, m));
-				}
-			}
+//			if(this.enablePackratParsing()) {
+//				Expression inner = GrammarFactory.resolveNonTerminal(p.get(0));
+//				MemoPoint m = this.issueMemoPoint(p.toString(), inner);
+//				if(m != null) {
+//					if(UFlag.is(option, Grammar.Tracing)) {
+//						IMonitoredSwitch monitor = new IMonitoredSwitch(p, encodeExpression(p.get(0), next, failjump));
+//						Instruction inside = encodeExpression(p.get(0), newMemoizeNode(p, monitor, m, next), failjump);
+//						monitor.setActivatedNext(newLookupNode(p, monitor, m, inside, next, new IMemoizeFail(p, monitor, m)));
+//						return monitor;
+//					}
+//					Instruction inside = encodeExpression(p.get(0), newMemoizeNode(p, IMonitoredSwitch.dummyMonitor, m, next), failjump);
+//					return newLookupNode(p, IMonitoredSwitch.dummyMonitor, m, inside, next, new IMemoizeFail(p, IMonitoredSwitch.dummyMonitor, m));
+//				}
+//			}
 			return new INodePush(p, encodeExpression(p.get(0), new INodeStore(p, next), failjump));
 		}
 		return encodeExpression(p.get(0), next, failjump);
 	}
 
-	private Instruction newLookupNode(Link e, IMonitoredSwitch monitor, MemoPoint m, Instruction next, Instruction skip, Instruction failjump) {
-		if(m.contextSensitive) {
-			return new IStateLookupNode(e, monitor, m, next, skip, failjump);
-		}
-		return new ILookupNode(e, monitor, m, next, skip, failjump);
-	}
-
-	private Instruction newMemoizeNode(Link e, IMonitoredSwitch monitor, MemoPoint m, Instruction next) {
-		if(m.contextSensitive) {
-			return new IStateMemoizeNode(e, monitor, m, next);
-		}
-		return new IMemoizeNode(e, monitor, m, next);
-	}
-
-	
-//	public final Instruction encodeNewClosure(NewClosure p, Instruction next) {
-//		if(this.enableASTConstruction()) {
-//			return new INew(p, this.encodeSequence(p, new ICapture(p, next), dfa));
+//	private Instruction newLookupNode(Link e, IMonitoredSwitch monitor, MemoPoint m, Instruction next, Instruction skip, Instruction failjump) {
+//		if(m.contextSensitive) {
+//			return new IStateLookupNode(e, monitor, m, next, skip, failjump);
 //		}
-//		return this.encodeSequence(p, next, dfa);
+//		return new ILookupNode(e, monitor, m, next, skip, failjump);
 //	}
 //
-//	public final Instruction encodeLeftNewClosure(LeftNewClosure p, Instruction next) {
-//		if(this.enableASTConstruction()) {
-//			return new ILeftNew(p, this.encodeSequence(p, new ICapture(p, next), dfa));
+//	private Instruction newMemoizeNode(Link e, IMonitoredSwitch monitor, MemoPoint m, Instruction next) {
+//		if(m.contextSensitive) {
+//			return new IStateMemoizeNode(e, monitor, m, next);
 //		}
-//		return this.encodeSequence(p, next, dfa);
+//		return new IMemoizeNode(e, monitor, m, next);
 //	}
 
-	public final Instruction encodeNew(New p, Instruction next) {
-		if(this.enableASTConstruction()) {
-			return p.lefted ? new ILeftNew(p, next) : new INew(p, next);
-		}
-		return next;
-	}
-
-	public final Instruction encodeCapture(Capture p, Instruction next) {
-		if(this.enableASTConstruction()) {
-			return new ICapture(p, next);
-		}
-		return next;
-	}
 	
-	public final Instruction encodeTagging(Tagging p, Instruction next) {
-		if(this.enableASTConstruction()) {
-			return new ITag(p, next);
-		}
-		return next;
-	}
-
-	public final Instruction encodeReplace(Replace p, Instruction next) {
-		if(this.enableASTConstruction()) {
-			return new IReplace(p, next);
-		}
-		return next;
-	}
 	
-	public final Instruction encodeBlock(Block p, Instruction next, Instruction failjump) {
-		Instruction failed = new ITablePop(p, new IFail(p));
-		Instruction inner = encodeExpression(p.get(0), new IFailPop(p, new ITablePop(p, next)), failjump);
-		return new ITablePush(p, new IFailPush(p, failed, inner));
-	}
-	
-	public final Instruction encodeDefSymbol(DefSymbol p, Instruction next, Instruction failjump) {
-		Instruction inner = encodeExpression(p.get(0), new IDefSymbol(p, next), failjump);
-		return new IPosPush(p, inner);
-	}
-	
-	public final Instruction encodeIsSymbol(IsSymbol p, Instruction next, Instruction failjump) {
-		Instruction inner = encodeExpression(p.getSymbolExpression(), new IIsSymbol(p, p.checkLastSymbolOnly, next), failjump);
-		return new IPosPush(p, inner);
-	}
-	
-	public final Instruction encodeDefIndent(DefIndent p, Instruction next, Instruction failjump) {
-		return new IDefIndent(p, next);
-	}
-	
-	public final Instruction encodeIsIndent(IsIndent p, Instruction next, Instruction failjump) {
-		return new IIsIndent(p, next);
-	}
-
-	public Instruction encodeExistsSymbol(ExistsSymbol existsSymbol, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
-		return next;
-	}
-
-	public Instruction encodeLocalTable(LocalTable localTable, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
-		return next;
-	}
-
-
 }
