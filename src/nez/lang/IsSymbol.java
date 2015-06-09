@@ -3,11 +3,10 @@ package nez.lang;
 import nez.ast.SourcePosition;
 import nez.ast.Tag;
 import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
-public class IsSymbol extends Terminal {
+public class IsSymbol extends Terminal implements Contextual {
 	public final Tag tableName;
 	final NameSpace ns;
 	public final boolean checkLastSymbolOnly;
@@ -16,6 +15,14 @@ public class IsSymbol extends Terminal {
 		this.ns = ns;
 		this.tableName = tableName;
 		this.checkLastSymbolOnly = false;
+	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof IsSymbol) {
+			IsSymbol e = (IsSymbol)o;
+			return this.tableName == e.tableName && this.ns == e.ns && this.checkLastSymbolOnly == e.checkLastSymbolOnly;
+		}
+		return false;
 	}
 
 	public final NameSpace getNameSpace() {
@@ -48,20 +55,16 @@ public class IsSymbol extends Terminal {
 	}
 	
 	@Override
-	public boolean isConsumed(Stacker stacker) {
+	public boolean isConsumed() {
 		Expression inner = this.getSymbolExpression();
 		if(inner != null) {
-			return inner.isConsumed(stacker);
+			return inner.isConsumed();
 		}
 		return false;
 	}
 
 	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-		return true;
-	}
-	@Override
-	public int inferTypestate(UMap<String> visited) {
+	public int inferTypestate(Visa v) {
 		return Typestate.BooleanType;
 	}
 	@Override
@@ -69,10 +72,10 @@ public class IsSymbol extends Terminal {
 		if(this.getSymbolExpression() != null) {
 			return this.getSymbolExpression().acceptByte(ch, option);
 		}
-		return Prediction.Accept;
+		return Acceptance.Accept;
 	}
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeIsSymbol(this, next, failjump);
 	}
 	@Override

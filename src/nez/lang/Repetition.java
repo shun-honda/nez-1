@@ -2,15 +2,21 @@ package nez.lang;
 
 import nez.ast.SourcePosition;
 import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public class Repetition extends Unary {
 	public boolean possibleInfiniteLoop = false;
 	Repetition(SourcePosition s, Expression e) {
 		super(s, e);
 		e.setOuterLefted(this);
+	}
+	@Override
+	public boolean equalsExpression(Expression o) {
+		if(o instanceof Repetition) {
+			return this.get(0).equalsExpression(o.get(0));
+		}
+		return false;
 	}
 	@Override
 	public String getPredicate() { 
@@ -21,26 +27,22 @@ public class Repetition extends Unary {
 		return "*";
 	}
 	@Override
+	protected void format(StringBuilder sb) {
+		this.formatUnary(sb, this.inner, "*");
+	}
+	@Override
 	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeRepetition(this);
 	}
 
 	@Override
-	public boolean isConsumed(Stacker stacker) {
+	public boolean isConsumed() {
 		return false;
 	}
 
 	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-//		if(checker != null) {
-//			this.inner.checkAlwaysConsumed(checker, startNonTerminal, stack);
-//		}
-		return false;
-	}
-
-	@Override
-	public int inferTypestate(UMap<String> visited) {
-		int t = this.inner.inferTypestate(visited);
+	public int inferTypestate(Visa v) {
+		int t = this.inner.inferTypestate(v);
 		if(t == Typestate.ObjectType) {
 			return Typestate.BooleanType;
 		}
@@ -48,11 +50,11 @@ public class Repetition extends Unary {
 	}
 
 	@Override public short acceptByte(int ch, int option) {
-		return Prediction.acceptOption(this, ch, option);
+		return Acceptance.acceptOption(this, ch, option);
 	}
 			
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeRepetition(this, next);
 	}
 

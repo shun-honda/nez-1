@@ -3,9 +3,8 @@ package nez.lang;
 import nez.ast.SourcePosition;
 import nez.ast.Tag;
 import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public class LocalTable extends Unary {
 	public final Tag tableName;
@@ -16,6 +15,16 @@ public class LocalTable extends Unary {
 		this.ns = ns;
 		this.tableName = table;
 		ns.setSymbolExpresion(tableName.getName(), inner);
+	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof LocalTable) {
+			LocalTable s = (LocalTable)o;
+			if(this.ns == s.ns && this.tableName == s.tableName) {
+				return this.get(0).equalsExpression(s.get(0));
+			}
+		}
+		return false;
 	}
 
 	public final NameSpace getNameSpace() {
@@ -46,19 +55,13 @@ public class LocalTable extends Unary {
 	}
 	
 	@Override
-	public boolean isConsumed(Stacker stacker) {
-		return this.inner.isConsumed(stacker);
-	}
-
-	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-		this.inner.checkAlwaysConsumed(checker, startNonTerminal, stack);
-		return true;
+	public boolean isConsumed() {
+		return this.inner.isConsumed();
 	}
 	
 	@Override
-	public int inferTypestate(UMap<String> visited) {
-		return this.inner.inferTypestate(visited);
+	public int inferTypestate(Visa v) {
+		return this.inner.inferTypestate(v);
 	}
 	
 	@Override
@@ -67,7 +70,7 @@ public class LocalTable extends Unary {
 	}
 		
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeLocalTable(this, next, failjump);
 	}
 

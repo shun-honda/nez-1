@@ -4,7 +4,7 @@ import nez.ast.SourcePosition;
 import nez.ast.Tag;
 import nez.util.StringUtils;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public class Tagging extends ASTOperation {
 	public Tag tag;
@@ -15,6 +15,14 @@ public class Tagging extends ASTOperation {
 	Tagging(SourcePosition s, String name) {
 		this(s, Tag.tag(name));
 	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof Tagging) {
+			return this.tag == ((Tagging)o).tag;
+		}
+		return false;
+	}
+
 	public final String getTagName() {
 		return tag.getName();
 	}
@@ -27,7 +35,11 @@ public class Tagging extends ASTOperation {
 		return "#" + this.tag.getName();
 	}
 	@Override
-	public boolean isConsumed(Stacker stacker) {
+	protected final void format(StringBuilder sb) {
+		sb.append("#" + tag.getName());
+	}
+	@Override
+	public boolean isConsumed() {
 		return false;
 	}
 	@Override
@@ -40,7 +52,7 @@ public class Tagging extends ASTOperation {
 //		return true;
 //	}
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeTagging(this, next);
 	}
 }

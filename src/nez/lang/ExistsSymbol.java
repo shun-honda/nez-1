@@ -3,20 +3,26 @@ package nez.lang;
 import nez.ast.SourcePosition;
 import nez.ast.Tag;
 import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
-public class ExistsSymbol extends Expression {
+public class ExistsSymbol extends Expression implements Contextual {
 	public final Tag tableName;
 	final NameSpace ns;
-	
 	ExistsSymbol(SourcePosition s, NameSpace ns, Tag tableName) {
 		super(s);
 		this.ns = ns;
 		this.tableName = tableName;
 	}
-
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof ExistsSymbol) {
+			ExistsSymbol s = (ExistsSymbol)o;
+			return this.ns == s.ns && this.tableName == s.tableName;
+		}
+		return false;
+	}
+	
 	public final NameSpace getNameSpace() {
 		return ns;
 	}
@@ -47,31 +53,24 @@ public class ExistsSymbol extends Expression {
 	}
 	
 	@Override
-	public boolean isConsumed(Stacker stacker) {
-		Expression inner = this.getSymbolExpression();
-		if(inner != null) {
-			return inner.isConsumed(stacker);
-		}
+	public boolean isConsumed() {
 		return false;
 	}
 
 	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-		return true;
-	}
-	@Override
-	public int inferTypestate(UMap<String> visited) {
+	public int inferTypestate(Visa v) {
 		return Typestate.BooleanType;
 	}
+	
 	@Override
 	public short acceptByte(int ch, int option) {
 		if(this.getSymbolExpression() != null) {
 			return this.getSymbolExpression().acceptByte(ch, option);
 		}
-		return Prediction.Accept;
+		return Acceptance.Accept;
 	}
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeExistsSymbol(this, next, failjump);
 	}
 	@Override

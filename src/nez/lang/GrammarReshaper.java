@@ -1,5 +1,6 @@
 package nez.lang;
 
+import nez.util.UFlag;
 import nez.util.UList;
 
 public class GrammarReshaper {
@@ -37,32 +38,42 @@ public class GrammarReshaper {
 		return e;
 	}
 
+//	public Expression reshapeSequence(Sequence e) {
+//		int i = 0;
+//		Expression updated = null;
+//		for(i = 0; i < e.size(); i++) {
+//			Expression s = e.get(i);
+//			updated = s.reshape(this);
+//			if(s == updated) {
+//				updated = null;
+//				continue;
+//			}
+//			break;
+//		}
+//		if(updated == null) {
+//			return e;
+//		}
+//		UList<Expression> l = GrammarFactory.newList(2);
+//		for(int j = 0; j < i; j++) {
+//			l.add(e.get(j));
+//		}
+//		GrammarFactory.addSequence(l, updated);
+//		for(int j = i + 1; j < e.size(); j++) {
+//			GrammarFactory.addSequence(l, e.get(j).reshape(this));
+//		}
+//		return GrammarFactory.newSequence(e.s, l);
+//	}
+
 	public Expression reshapeSequence(Sequence e) {
-		int i = 0;
-		Expression updated = null;
-		for(i = 0; i < e.size(); i++) {
-			Expression s = e.get(i);
-			updated = s.reshape(this);
-			if(s == updated) {
-				updated = null;
-				continue;
-			}
-			break;
-		}
-		if(updated == null) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		if(first == e.getFirst() && last == e.getLast()) {
 			return e;
 		}
-		UList<Expression> l = e.newList();
-		for(int j = 0; j < i; j++) {
-			l.add(e.get(j));
-		}
-		GrammarFactory.addSequence(l, updated);
-		for(int j = i + 1; j < e.size(); j++) {
-			GrammarFactory.addSequence(l, e.get(j).reshape(this));
-		}
-		return GrammarFactory.newSequence(e.s, l);
+		return e.newSequence(first, last);
 	}
 
+	
 	public Expression reshapeChoice(Choice e) {
 		int i = 0;
 		Expression updated = null;
@@ -78,7 +89,7 @@ public class GrammarReshaper {
 		if(updated == null) {
 			return e;
 		}
-		UList<Expression> l = e.newList();
+		UList<Expression> l = GrammarFactory.newList(e.size());
 		for(int j = 0; j < i; j++) {
 			l.add(e.get(j));
 		}
@@ -274,8 +285,7 @@ class ASTConstructionEliminator extends GrammarReshaper {
 		this.renaming = renaming;
 	}
 	public void updateProductionAttribute(Production origProduction, Production newProduction) {
-		newProduction.transType = Typestate.BooleanType;
-		newProduction.minlen = origProduction.minlen;
+		newProduction.flag = UFlag.unsetFlag(origProduction.flag, Production.ObjectProduction | Production.OperationalProduction);
 	}
 	
 	@Override

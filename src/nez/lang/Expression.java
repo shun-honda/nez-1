@@ -4,9 +4,8 @@ import java.util.TreeMap;
 
 import nez.ast.SourcePosition;
 import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public abstract class Expression extends AbstractList<Expression> {
 	public final static boolean ClassicMode = false;
@@ -14,13 +13,18 @@ public abstract class Expression extends AbstractList<Expression> {
 	SourcePosition s = null;
 	int    internId   = 0;
 	
-	int    optimizedOption = -1;
-	
-	public Expression optimized;
 	Expression(SourcePosition s) {
 		this.s = s;
 		this.internId = 0;
-		this.optimized = this;
+	}
+	
+	public abstract boolean equalsExpression(Expression o) ;
+	
+	public final boolean equals(Object o) {
+		if(o instanceof Expression) {
+			return this.equalsExpression((Expression)o);
+		}
+		return false;
 	}
 	
 	public final SourcePosition getSourcePosition() {
@@ -46,20 +50,28 @@ public abstract class Expression extends AbstractList<Expression> {
 	public Expression get(int index) {
 		return null;
 	}
+
 	@Override
 	public int size() {
 		return 0;
 	}
-	
+
+	public Expression getFirst() {
+		return this;
+	}
+
+	public Expression getLast() {
+		return null;
+	}
+
 	public abstract Expression reshape(GrammarReshaper m);
 	
-	public final boolean isAlwaysConsumed() {
-		return this.checkAlwaysConsumed(null, null, null);
-	}
-	public abstract boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack);
+//	public final boolean isAlwaysConsumed() {
+//		return this.checkAlwaysConsumed(null, null, null);
+//	}
+//	public abstract boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack);
 	
-	public abstract boolean isConsumed(Stacker stacker);
-	
+	public abstract boolean isConsumed();
 	
 	boolean setOuterLefted(Expression outer) { return false; }
 	
@@ -67,28 +79,27 @@ public abstract class Expression extends AbstractList<Expression> {
 		return this.inferTypestate(null);
 	}
 	
-	public abstract int inferTypestate(UMap<String> visited);
+	public abstract int inferTypestate(Visa v);
 	
 	public abstract short acceptByte(int ch, int option);
 	
-	public final Expression optimize(int option) {
-		option = Grammar.mask(option);
-		if(this.optimizedOption != option) {
-			optimizeImpl(option);
-			this.optimizedOption = option;
+	@Override
+	public final String toString() {
+		StringBuilder sb = new StringBuilder();
+		format(sb);
+		return sb.toString();
+	}
+
+	protected void format(StringBuilder sb) {
+		sb.append("<");
+		sb.append(this.getPredicate());
+		for(Expression se : this) {
+			sb.append(" ");
+			se.format(sb);
 		}
-		return this.optimized;
+		sb.append(">");
 	}
 	
-	void optimizeImpl(int option) {
-		this.optimized = this;
-	}
-
-	@Override
-	public String toString() {
-		return new GrammarFormatter().format(this);
-	}
-
 	public final UList<Expression> toList() {
 		UList<Expression> l = new UList<Expression>(new Expression[this.size()]);
 		if(this.size() > 1) {
@@ -106,7 +117,7 @@ public abstract class Expression extends AbstractList<Expression> {
 		visitor.visit(this);
 	}
 
-	public abstract Instruction encode(NezCompiler bc, Instruction next, Instruction failjump);
+	public abstract Instruction encode(NezEncoder bc, Instruction next, Instruction failjump);
 
 
 	protected int pattern(GEP gep) {
@@ -131,6 +142,32 @@ public abstract class Expression extends AbstractList<Expression> {
 		return (e instanceof Tagging || e instanceof Replace);
 	}
 	
+	// convinient interface
+	
+	public final Expression newEmpty() {
+		return GrammarFactory.newEmpty(this.getSourcePosition());
+	}
+
+	public final Expression newFailure() {
+		return GrammarFactory.newFailure(this.getSourcePosition());
+	}
+
+	public final Expression newSequence(Expression e, Expression e2) {
+		return GrammarFactory.newSequence(this.getSourcePosition(), e, e2);
+	}
+
+	public final Expression newSequence(UList<Expression> l) {
+		return GrammarFactory.newSequence(this.getSourcePosition(), l);
+	}
+
+	public final Expression newChoice(Expression e, Expression e2) {
+		return GrammarFactory.newChoice(this.getSourcePosition(), e, e2);
+	}
+
+	public final Expression newChoice(UList<Expression> l) {
+		return GrammarFactory.newChoice(this.getSourcePosition(), l);
+	}
+
 	
 	
 

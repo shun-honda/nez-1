@@ -2,11 +2,19 @@ package nez.lang;
 
 import nez.ast.SourcePosition;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public class Failure extends Unconsumed {
 	Failure(SourcePosition s) {
 		super(s);
+	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		return (o instanceof Failure);
+	}
+	@Override
+	protected final void format(StringBuilder sb) {
+		sb.append("!''");
 	}
 	@Override
 	public String getPredicate() {
@@ -21,16 +29,16 @@ public class Failure extends Unconsumed {
 		return m.reshapeFailure(this);
 	}
 	@Override
-	public boolean isConsumed(Stacker stacker) {
+	public boolean isConsumed() {
 		return true;
 	}
 
 	@Override
 	public short acceptByte(int ch, int option) {
-		return Prediction.Reject;
+		return Acceptance.Reject;
 	}
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeFail(this);
 	}
 	@Override

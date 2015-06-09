@@ -2,9 +2,8 @@ package nez.lang;
 
 import nez.ast.SourcePosition;
 import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public class New extends Unconsumed {
 	public boolean lefted;
@@ -16,6 +15,15 @@ public class New extends Unconsumed {
 		this.shift  = shift;
 	}
 	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof New) {
+			New s = (New)o;
+			return (this.lefted == s.lefted && this.shift == s.shift);
+		}
+		return false;
+	}
+
+	@Override
 	public String getPredicate() { 
 		return "new";
 	}
@@ -25,17 +33,17 @@ public class New extends Unconsumed {
 		return (shift != 0) ? s + "[" + shift + "]" : s;
 	}
 	@Override
+	protected final void format(StringBuilder sb) {
+		sb.append(lefted ? "{@" : "{");
+	}
+
+	@Override
 	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeNew(this);
 	}
 
 	@Override
-	public boolean isConsumed(Stacker stacker) {
-		return false;
-	}
-
-	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
+	public boolean isConsumed() {
 		return false;
 	}
 	
@@ -48,11 +56,11 @@ public class New extends Unconsumed {
 		return false; 
 	}
 	@Override
-	public int inferTypestate(UMap<String> visited) {
+	public int inferTypestate(Visa v) {
 		return Typestate.ObjectType;
 	}
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeNew(this, next);
 	}
 	@Override

@@ -3,13 +3,20 @@ package nez.lang;
 import nez.ast.SourcePosition;
 import nez.util.StringUtils;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public class Replace extends ASTOperation {
 	public String value;
 	Replace(SourcePosition s, String value) {
 		super(s);
 		this.value = value;
+	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof Replace) {
+			return this.value.equals(((Replace)o).value);
+		}
+		return false;
 	}
 	@Override
 	public String getPredicate() {
@@ -20,7 +27,12 @@ public class Replace extends ASTOperation {
 		return "`" + this.value;
 	}
 	@Override
-	public boolean isConsumed(Stacker stacker) {
+	protected final void format(StringBuilder sb) {
+		sb.append(StringUtils.quoteString('`', this.value, '`'));
+	}
+
+	@Override
+	public boolean isConsumed() {
 		return false;
 	}
 	@Override
@@ -28,7 +40,7 @@ public class Replace extends ASTOperation {
 		return m.reshapeReplace(this);
 	}
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeReplace(this, next);
 	}
 }

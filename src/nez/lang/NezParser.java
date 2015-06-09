@@ -168,7 +168,7 @@ public class NezParser extends CommonTreeVisitor {
 				int c = 0;
 				for(String n : source.getNonterminalList()) {
 					Production p = source.getProduction(n);
-					if(p.isPublic) {
+					if(p.isPublic()) {
 						checkDuplicatedName(node.get(0));
 						loaded.inportProduction(ns, p);
 						c++;
@@ -215,32 +215,34 @@ public class NezParser extends CommonTreeVisitor {
 		return path2;
 	}
 
-	
+	private boolean binary = false;
 	public Production parseProduction(CommonTree node) {
 		String localName = node.textAt(0, "");
-		boolean isTerminal = false;
+		int productionFlag = 0;
 		if(node.get(0).is(NezTag.String)) {
 			localName = NameSpace.nameTerminalProduction(localName);
-			isTerminal = true;
+			productionFlag |= Production.TerminalProduction;
+		}
+		this.binary = false;
+		if(node.size() == 3) {
+			CommonTree attrs = node.get(2);
+			if(attrs.containsToken("binary")) {
+				this.binary = true;
+			}
+			if(attrs.containsToken("public")) {
+				productionFlag |= Production.PublicProduction;
+			}
+			if(attrs.containsToken("inline")) {
+				productionFlag |= Production.InlineProduction;
+			}
 		}
 		Production rule = loaded.getProduction(localName);
 		if(rule != null) {
 			checker.reportWarning(node, "duplicated rule name: " + localName);
 			rule = null;
 		}
-
 		Expression e = toExpression(node.get(1));
-		rule = loaded.defineProduction(node.get(0), localName, e);
-		rule.isTerminal = isTerminal;
-		if(node.size() == 3) {
-			CommonTree attrs = node.get(2);
-			if(attrs.containsToken("public")) {
-				rule.isPublic = true;
-			}
-			if(attrs.containsToken("inline")) {
-				rule.isInline = true;
-			}
-		}
+		rule = loaded.defineProduction(node.get(0), productionFlag, localName, e);
 		return rule;
 	}
 
@@ -287,17 +289,17 @@ public class NezParser extends CommonTreeVisitor {
 			c = (c * 16) + StringUtils.hex(t.charAt(4));
 			c = (c * 16) + StringUtils.hex(t.charAt(5));
 			if(c < 128) {
-				return GrammarFactory.newByteChar(ast, c);					
+				return GrammarFactory.newByteChar(ast, this.binary, c);					
 			}
 			String t2 = java.lang.String.valueOf((char)c);
 			return GrammarFactory.newString(ast, t2);
 		}
 		int c = StringUtils.hex(t.charAt(t.length()-2)) * 16 + StringUtils.hex(t.charAt(t.length()-1)); 
-		return GrammarFactory.newByteChar(ast, c);
+		return GrammarFactory.newByteChar(ast, this.binary, c);
 	}
 
 	public Expression toAny(CommonTree ast) {
-		return GrammarFactory.newAnyChar(ast);
+		return GrammarFactory.newAnyChar(ast, this.binary);
 	}
 
 	public Expression toChoice(CommonTree ast) {

@@ -2,12 +2,11 @@ package nez.lang;
 
 import nez.ast.SourcePosition;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
-public class IfFlag extends Unconsumed {
+public class IfFlag extends Unconsumed implements Conditional {
 	boolean predicate;
 	String flagName;
-
 	IfFlag(SourcePosition s, boolean predicate, String flagName) {
 		super(s);
 		if(flagName.startsWith("!")) {
@@ -17,6 +16,15 @@ public class IfFlag extends Unconsumed {
 		this.predicate = predicate;
 		this.flagName = flagName;
 	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof IfFlag) {
+			IfFlag e = (IfFlag)o;
+			return this.predicate == e.predicate && this.flagName.equals(e.flagName);
+		}
+		return false;
+	}
+
 
 	public final String getFlagName() {
 		return this.flagName;
@@ -37,13 +45,13 @@ public class IfFlag extends Unconsumed {
 	}
 
 	@Override
-	public boolean isConsumed(Stacker stacker) {
+	public boolean isConsumed() {
 		return false;
 	}
 
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
-		return next;
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
+		return bc.encodeIfFlag(this, next, failjump);
 	}
 
 	@Override

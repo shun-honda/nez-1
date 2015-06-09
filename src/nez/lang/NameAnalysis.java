@@ -1,109 +1,98 @@
 package nez.lang;
 
+import java.util.List;
+
 import nez.util.StringUtils;
+import nez.util.UFlag;
 
 public class NameAnalysis extends GrammarReshaper {
-	// <applay Statement Expr Expr>
-	// <any ![e]> i'hello'
-	
-	public Expression reshapeProduction(Production p) {
-		if(p.isTerminal) {
-			return p;
+
+	public void analyze(List<Production> l) {
+		for(Production p: l) {
+			if(p.isTerminal()) {
+				continue;
+			}
+			analyze(p);
 		}
-		p.setExpression(p.getExpression().reshape(this));
-		return p;
+		for(Production p: l) {
+			if(p.isTerminal()) {
+				continue;
+			}
+			if(UFlag.is(p.flag, Production.ResetFlag)) {
+				p.initFlag();
+				if(p.isRecursive()) {
+					checkLeftRecursion(p.getExpression(), new ProductionStacker(p, null));
+				}
+				p.isNoNTreeConstruction();
+			}
+		}
 	}
 	
-	public Expression reshapeNonTerminal(NonTerminal p) {
-		Production r = p.getProduction();
-		if(r == null) {
-			if(p.isTerminal()) {
-				p.getNameSpace().reportNotice(p, "undefined terminal: " + p.getLocalName());
-				return GrammarFactory.newString(p.s, StringUtils.unquoteString(p.getLocalName()));
+	boolean checkLeftRecursion(Expression e, ProductionStacker s) {
+		if(e instanceof NonTerminal) {
+			Production p = ((NonTerminal) e).getProduction();
+			if(s.isVisited(p)) {
+				((NonTerminal) e).getNameSpace().reportError(e, "left recursion: " + p.getLocalName());
+				return true;  // stop as consumed
 			}
-			p.getNameSpace().reportWarning(p, "undefined rule: " + p.getLocalName());
-			r = p.getNameSpace().defineProduction(p.s, p.getLocalName(), GrammarFactory.newEmpty(p.s));
+			return checkLeftRecursion(p.getExpression(), new ProductionStacker(p, s));
 		}
-		r.refCount += 1;
-		if(p.isTerminal()) {
-			return r.getExpression().reshape(this);  // inlining terminal
+		if(e.size() > 0) {
+			if(e instanceof Sequence) {
+				if(!checkLeftRecursion(e.get(0), s)) {
+					return checkLeftRecursion(e.get(1), s);
+				}
+			}
+			if(e instanceof Choice) {
+				boolean consumed = true;
+				for(Expression se: e) {
+					if(!checkLeftRecursion(e.get(1), s)) {
+						consumed = false;
+					}
+				}
+				return consumed;
+			}
+			boolean r = checkLeftRecursion(e.get(0), s);
+			if(e instanceof Repetition1) {
+				return r;
+			}
+			if(e instanceof Not || e instanceof Repetition || e instanceof Option || e instanceof And) {
+				return false;
+			}
+			return r;
 		}
-		return p;
-//		if(!r.isRecursive) {
-//			String u = r.getUniqueName();
-//			if(u.equals(ruleName)) {
-//				r.isRecursive = true;
-//				if(r.isInline) {
-//					checker.reportError(s, "recursion disallows inlining " + r.getLocalName());
-//					r.isInline = false;
-//				}
-//			}
-//			if(!visited.hasKey(u)) {
-//				visited.put(u, ruleName);
-//				checker.checkPhase1(r.getExpression(), ruleName, visited, depth+1);
-//			}
-//		}
+		return e.isConsumed();
+	}
+		
+	boolean sync;
+	public boolean analyze(Production p) {
+		sync = false;
+		p.setExpression(p.getExpression().reshape(this));
+		if(sync) {
+			p.resetFlag();
+		}
+		return sync;
+	}
+	
+	public Expression reshapeNonTerminal(NonTerminal n) {
+		Production p = n.getNameSpace().getProduction(n.getLocalName());
+		if(p == null) {
+			if(n.isTerminal()) {
+				n.getNameSpace().reportNotice(n, "undefined terminal: " + n.getLocalName());
+				return GrammarFactory.newString(n.s, StringUtils.unquoteString(n.getLocalName()));
+			}
+			n.getNameSpace().reportWarning(n, "undefined production: " + n.getLocalName());
+			return n.newEmpty();
+		}
+		if(n.isTerminal()) {
+			return p.getExpression().reshape(this);  // inlining terminal
+		}
+		if(n.syncProduction()) {
+			this.sync = true;
+		}
+		return n;
 	}
 }
 
 class StructualAnalysis extends GrammarReshaper {
-
-	//New
-//	@Override void checkPhase2(GrammarChecker checker) {
-//		if(this.lefted && this.outer == null) {
-//			checker.reportError(s, "expected repetition for " + this);
-//		}
-//	}
-
-	//Repetition
-//	@Override void checkPhase2(GrammarChecker checker) {
-//		if(!this.inner.checkAlwaysConsumed(checker, null, null)) {
-//			checker.reportError(s, "unconsumed repetition");
-//			this.possibleInfiniteLoop = true;
-//		}
-//	}
-
-	public static int quickConsumedCheck(Expression e) {
-		if(e == null) {
-			return -1;
-		}
-		if(e instanceof NonTerminal ) {
-			NonTerminal n = (NonTerminal)e;
-			Production p = n.getProduction();
-			if(p != null && p.minlen != -1) {
-				return p.minlen;
-			}
-			return -1;  // unknown
-		}
-		if(e instanceof ByteChar || e instanceof AnyChar || e instanceof ByteMap) {
-			return 1; /* next*/
-		}
-		if(e instanceof Choice) {
-			int r = 1;
-			for(Expression sub: e) {
-				int minlen = quickConsumedCheck(sub);
-				if(minlen == 0) {
-					return 0;
-				}
-				if(minlen == -1) {
-					r = -1;
-				}
-			}
-			return r;
-		}
-		if(e instanceof Not || e instanceof Option || (e instanceof Repetition && !(e instanceof Repetition1)) || e instanceof And) {
-			return 0;
-		}
-		int r = 0;
-		for(Expression sub: e) {
-			int minlen = quickConsumedCheck(sub);
-			if(minlen > 0) {
-				return minlen;
-			}
-			if(minlen == -1) {
-				r = -1;
-			}
-		}
-		return r;
-	}
 }

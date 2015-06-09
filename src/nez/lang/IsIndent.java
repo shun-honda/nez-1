@@ -3,11 +3,15 @@ package nez.lang;
 import nez.ast.SourcePosition;
 import nez.util.UList;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
-public class IsIndent extends Terminal {
+public class IsIndent extends Terminal implements Contextual {
 	IsIndent(SourcePosition s) {
 		super(s);
+	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		return (o instanceof IsIndent);
 	}
 	@Override
 	public String getPredicate() {
@@ -24,25 +28,20 @@ public class IsIndent extends Terminal {
 	}
 	
 	@Override
-	public boolean isConsumed(Stacker stacker) {
-		// TODO Auto-generated method stub
+	public boolean isConsumed() {
 		return false;
 	}
 
-	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-		return false;
-	}
 	@Override
 	public short acceptByte(int ch, int option) {
 		if (ch == '\t' || ch == ' ') {
-			return Prediction.Accept;
+			return Acceptance.Accept;
 		}
-		return Prediction.Unconsumed;
+		return Acceptance.Unconsumed;
 	}
 
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeIsIndent(this, next, failjump);
 	}
 	@Override

@@ -3,6 +3,9 @@ package nez.util;
 import java.io.UnsupportedEncodingException;
 
 import nez.lang.ByteMap;
+import nez.lang.Choice;
+import nez.lang.Expression;
+import nez.lang.Sequence;
 import nez.main.Verbose;
 
 public abstract class StringUtils {
@@ -181,8 +184,24 @@ public abstract class StringUtils {
 		return (char)c;
 	}
 
-	
-	public final static String stringfyByte(int ch) {
+	public static void appendByteChar(StringBuilder sb, int ch, String quote) {
+		switch(ch) {
+			case '\n' : sb.append("\\n"); return;
+			case '\t' : sb.append("\\t"); return;
+			case '\r' : sb.append("\\r"); return;
+			case '\\' : sb.append("\\\\"); return;
+		}
+		if(Character.isISOControl(ch) || ch > 127) {
+			sb.append(String.format("0x%02x", ch));
+			return;
+		}
+		if(quote.indexOf(ch) != -1) {
+			sb.append("\\");
+		}
+		sb.append((char)ch);
+	}
+
+	public final static String stringfyCharacter(int ch) {
 		char c = (char)ch;
 		switch(c) {
 		case '\n' : return("'\\n'"); 
@@ -227,7 +246,7 @@ public abstract class StringUtils {
 		return sb.toString();
 	}
 	
-	public final static String stringfyCharClass(boolean[] b) {
+	public final static String stringfyCharacterClass(boolean[] b) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("[");
 		for(int s = 0; s < 256; s++) {
@@ -277,10 +296,16 @@ public abstract class StringUtils {
 		}
 	}
 
-	public final static String stringfyByteMap(boolean[] b) {
+	public final static String stringfyBitmap(boolean[] b) {
 		StringBuilder sb = new StringBuilder();
-		for(int offset = 0; offset < 127; offset += 4) {
-			stringfyByteMapImpl(sb, b, offset);
+		int end = 0;
+		for(int c = 0; c < b.length; c++) {
+			if(b[c]) {
+				end = c + 1;
+			}
+		}
+		for(int offset = 0; offset < end; offset += 4) {
+			appendBitmap(sb, b, offset);
 		}
 		return sb.toString();
 	}
@@ -289,7 +314,7 @@ public abstract class StringUtils {
 		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
 	};
 	
-	private static void stringfyByteMapImpl(StringBuilder sb, boolean[] b, int offset) {
+	private static void appendBitmap(StringBuilder sb, boolean[] b, int offset) {
 		int n = 0;
 		if(b[offset+0]) {
 			n |= (1 << 3);
@@ -305,8 +330,6 @@ public abstract class StringUtils {
 		}
 		sb.append(HexChar[n]);
 	}
-
-	
 	
 	public static final boolean[] parseByteMap(String text) {
 		boolean[] b = ByteMap.newMap(false);

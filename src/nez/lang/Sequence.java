@@ -1,18 +1,58 @@
 package nez.lang;
 
-import java.util.TreeMap;
-
 import nez.ast.SourcePosition;
+import nez.util.StringUtils;
 import nez.util.UFlag;
 import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
-public class Sequence extends Multinary {
-	Sequence(SourcePosition s, UList<Expression> l) {
-		super(s, l, l.size());
+public class Sequence extends Expression {
+	Expression first;
+	Expression last;
+	Sequence(SourcePosition s, Expression first, Expression last) {
+		super(s);
+		this.first = first;
+		this.last  = last;
 	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof Sequence) {
+			return this.get(0).equalsExpression(o.get(0)) && this.get(1).equalsExpression(o.get(1));
+		}
+		return false;
+	}
+	@Override
+	public final int size() {
+		return 2;
+	}
+	@Override
+	public final Expression get(int index) {
+		return index == 0 ? this.first : this.last;
+	}
+	@Override
+	public final Expression set(int index, Expression e) {
+		Expression p = this.first;
+		if(index == 0) {
+			this.first = e;
+		}
+		else {
+			p = this.last;
+			this.last = e;
+		}
+		return p;
+	}
+	
+	public Expression getFirst() {
+		return this.first;
+	}
+	public Expression getLast() {
+		return this.last;
+	}
+
+//	Sequence(SourcePosition s, UList<Expression> l) {
+//		super(s, l, l.size());
+//	}
 	@Override
 	public String getPredicate() {
 		return "seq";
@@ -22,29 +62,82 @@ public class Sequence extends Multinary {
 		return " ";
 	}
 	@Override
+	protected final void format(StringBuilder sb) {
+		if(this.first instanceof ByteChar && this.last.getFirst() instanceof ByteChar) {
+			sb.append("'");
+			formatString(sb, (ByteChar)this.first, this.last);
+		}
+		else {
+			formatInner(sb, this.first);
+			sb.append(" ");
+			formatInner(sb, this.last);
+		}
+	}
+	
+	private void formatString(StringBuilder sb,  ByteChar b, Expression next) {
+		while(b != null) {
+			StringUtils.appendByteChar(sb, b.byteChar, "'");
+			if(next == null) {
+				sb.append("'");
+				return;
+			}
+			Expression first = next.getFirst();
+			b = null;
+			if(first instanceof ByteChar) {
+				b = (ByteChar)first;
+				next = next.getLast();
+			}
+		}
+		sb.append("'");
+		sb.append(" ");
+		formatInner(sb, next);
+	}
+
+	private void formatInner(StringBuilder sb, Expression e) {
+		if(e instanceof Choice || e instanceof Sequence) {
+			sb.append("( ");
+			e.format(sb);
+			sb.append(" )");
+		}
+		else {	
+			e.format(sb);
+		}
+	}
+
+	private int appendAsString(StringBuilder sb, int start) {
+		int end = this.size();
+		String s = "";
+		for(int i = start; i < end; i++) {
+			Expression e = this.get(i);
+			if(e instanceof ByteChar) {
+				char c = (char)(((ByteChar) e).byteChar);
+				if(c >= ' ' && c < 127) {
+					s += c;
+					continue;
+				}
+			}
+			end = i;
+			break;
+		}
+		if(s.length() > 1) {
+			sb.append(StringUtils.quoteString('\'', s, '\''));
+		}
+		return end - 1;
+	}
+
+	@Override
 	public Expression reshape(GrammarReshaper m) {
 		return m.reshapeSequence(this);
 	}
 
 	@Override
-	public boolean isConsumed(Stacker stacker) {
-		for(Expression e: this) {
-			if(e.isConsumed(stacker)) {
-				return true;
-			}
+	public boolean isConsumed() {
+		if(this.get(0).isConsumed()) {
+			return true;
 		}
-		return false;
+		return this.get(1).isConsumed();
 	}
 
-	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-		for(Expression e: this) {
-			if(e.checkAlwaysConsumed(checker, startNonTerminal, stack)) {
-				return true;
-			}
-		}
-		return false;
-	}
 	@Override
 	boolean setOuterLefted(Expression outer) { 
 		for(Expression e: this) {
@@ -55,9 +148,9 @@ public class Sequence extends Multinary {
 		return false;
 	}
 	@Override
-	public int inferTypestate(UMap<String> visited) {
+	public int inferTypestate(Visa v) {
 		for(Expression e: this) {
-			int t = e.inferTypestate(visited);
+			int t = e.inferTypestate(v);
 			if(t == Typestate.ObjectType || t == Typestate.OperationType) {
 				return t;
 			}
@@ -67,7 +160,7 @@ public class Sequence extends Multinary {
 
 	@Override
 	public short acceptByte(int ch, int option) {
-		return Prediction.acceptSequence(this, ch, option);
+		return Acceptance.acceptSequence(this, ch, option);
 	}
 
 	public final boolean isMultiChar() {
@@ -102,6 +195,7 @@ public class Sequence extends Multinary {
 		return b;
 	}
 	
+	/**
 	@Override
 	void optimizeImpl(int option) {
 		if(UFlag.is(option, Grammar.Optimization) && this.get(this.size() - 1) instanceof AnyChar) {
@@ -219,14 +313,15 @@ public class Sequence extends Multinary {
 
 	void predictByte(Expression e, boolean[] byteMap, int option) {
 		for(int c = 0; c < 256; c++) {
-			if(e.acceptByte(c, option) != Prediction.Reject) {
+			if(e.acceptByte(c, option) != Acceptance.Reject) {
 				byteMap[c] = true;
 			}
 		}
 	}
+	**/
 	
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeSequence(this, next, failjump);
 	}
 	

@@ -1,14 +1,18 @@
 package nez.lang;
 
 import nez.ast.SourcePosition;
-import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
-public class OnFlag extends Unary {
+public class OnFlag extends Unary implements Conditional {
 	boolean predicate;
+	public final boolean isPositive() {
+		return predicate;
+	}
 	String flagName;
+	public final String getFlagName() {
+		return this.flagName;
+	}
 
 	OnFlag(SourcePosition s, boolean predicate, String flagName, Expression inner) {
 		super(s, inner);
@@ -18,15 +22,16 @@ public class OnFlag extends Unary {
 		}
 		this.predicate = predicate;
 		this.flagName = flagName;
-		this.optimized = inner.optimized;
 	}
-
-	public final String getFlagName() {
-		return this.flagName;
-	}
-
-	public boolean isPredicate() {
-		return predicate;
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof OnFlag) {
+			OnFlag e = (OnFlag)o;
+			if(this.predicate == e.predicate && this.flagName.equals(e.flagName)) {
+				return this.get(0).equalsExpression(e.get(0));
+			};
+		}
+		return false;
 	}
 
 	@Override
@@ -40,18 +45,13 @@ public class OnFlag extends Unary {
 	}
 
 	@Override
-	public boolean isConsumed(Stacker stacker) {
-		return this.inner.isConsumed(stacker);
+	public boolean isConsumed() {
+		return this.inner.isConsumed();
 	}
 
 	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-		return inner.checkAlwaysConsumed(checker, startNonTerminal, stack);
-	}
-
-	@Override
-	public int inferTypestate(UMap<String> visited) {
-		return this.inner.inferTypestate(visited);
+	public int inferTypestate(Visa v) {
+		return this.inner.inferTypestate(v);
 	}
 
 	@Override
@@ -60,8 +60,8 @@ public class OnFlag extends Unary {
 	}
 
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
-		return this.inner.encode(bc, next, failjump);
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
+		return bc.encodeOnFlag(this, next, failjump);
 	}
 
 	@Override

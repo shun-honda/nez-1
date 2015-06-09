@@ -2,12 +2,20 @@ package nez.lang;
 
 import nez.ast.SourcePosition;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public class Empty extends Unconsumed {
 	Empty(SourcePosition s) {
 		super(s);
-	}	
+	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		return (o instanceof Empty);
+	}
+	@Override
+	protected final void format(StringBuilder sb) {
+		sb.append("''");
+	}
 	@Override
 	public String getPredicate() {
 		return "empty";
@@ -22,14 +30,13 @@ public class Empty extends Unconsumed {
 	}
 
 	@Override
-	public boolean isConsumed(Stacker stacker) {
+	public boolean isConsumed() {
 		return false;
 	}
 
-
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
-		return next;
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
+		return bc.encodeEmpty(this, next);
 	}
 
 	@Override

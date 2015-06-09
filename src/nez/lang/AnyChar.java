@@ -4,13 +4,29 @@ import nez.ast.Source;
 import nez.ast.SourcePosition;
 import nez.util.UFlag;
 import nez.util.UList;
-import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
-public class AnyChar extends Terminal {
-	AnyChar(SourcePosition s) {
+public class AnyChar extends Terminal implements Consumed {
+	boolean binary = false;
+	public final boolean isBinary() {
+		return this.binary;
+	}
+	AnyChar(SourcePosition s, boolean binary) {
 		super(s);
+		this.binary = binary;
+	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof AnyChar) {
+			return this.binary == ((AnyChar)o).isBinary();
+		}
+		return false;
+	}
+
+	@Override
+	protected final void format(StringBuilder sb) {
+		sb.append(".");
 	}
 
 	@Override
@@ -20,7 +36,7 @@ public class AnyChar extends Terminal {
 	
 	@Override
 	public String key() { 
-		return ".";
+		return binary ? "b." : ".";
 	}
 	
 	@Override
@@ -29,32 +45,28 @@ public class AnyChar extends Terminal {
 	}
 
 	@Override
-	public boolean isConsumed(Stacker stacker) {
+	public boolean isConsumed() {
 		return true;
 	}
 
 	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-		return true;
-	}
-	@Override
-	public int inferTypestate(UMap<String> visited) {
+	public int inferTypestate(Visa v) {
 		return Typestate.BooleanType;
 	}
 	
 	@Override
 	public short acceptByte(int ch, int option) {
-		if(UFlag.is(option, Grammar.Binary)) {
-			return (ch == Source.BinaryEOF) ? Prediction.Reject : Prediction.Accept;
+		if(binary) {
+			return (ch == Source.BinaryEOF) ? Acceptance.Reject : Acceptance.Accept;
 		}
 		else {
-			return (ch == Source.BinaryEOF || ch == 0) ? Prediction.Reject : Prediction.Accept;
+			return (ch == Source.BinaryEOF || ch == 0) ? Acceptance.Reject : Acceptance.Accept;
 		}
 	}
 	
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
-		return bc.encodeMatchAny(this, next, failjump);
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
+		return bc.encodeAnyChar(this, next, failjump);
 	}
 	@Override
 	protected int pattern(GEP gep) {

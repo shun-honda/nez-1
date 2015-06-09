@@ -3,7 +3,7 @@ package nez.lang;
 import nez.ast.Source;
 import nez.util.UFlag;
 
-public class Prediction {
+public class Acceptance {
 	public final static int TextEOF   = 0;
 	public final static int BinaryEOF = 256;
 	public final static short Accept = 0;
@@ -34,17 +34,17 @@ public class Prediction {
 	
 	public static short acceptOption(Expression e, int ch, int option) {
 		short r = e.get(0).acceptByte(ch, option);
-		return (r == Prediction.Accept) ? r : Prediction.Unconsumed;
+		return (r == Acceptance.Accept) ? r : Acceptance.Unconsumed;
 	}
 	
 	public static short acceptSequence(Expression e, int ch, int option) {
 		for(int i = 0; i < e.size(); i++) {
 			short r = e.get(i).acceptByte(ch, option);
-			if(r != Prediction.Unconsumed) {
+			if(r != Acceptance.Unconsumed) {
 				return r;
 			}
 		}
-		return Prediction.Unconsumed;
+		return Acceptance.Unconsumed;
 	}
 		
 }

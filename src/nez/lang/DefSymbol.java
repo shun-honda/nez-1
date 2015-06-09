@@ -5,7 +5,7 @@ import nez.ast.Tag;
 import nez.util.UList;
 import nez.util.UMap;
 import nez.vm.Instruction;
-import nez.vm.NezCompiler;
+import nez.vm.NezEncoder;
 
 public class DefSymbol extends Unary {
 	public final Tag tableName;
@@ -16,6 +16,16 @@ public class DefSymbol extends Unary {
 		this.ns = ns;
 		this.tableName = table;
 		ns.setSymbolExpresion(tableName.getName(), inner);
+	}
+	@Override
+	public final boolean equalsExpression(Expression o) {
+		if(o instanceof DefSymbol) {
+			DefSymbol e = (DefSymbol)o;
+			if(this.tableName == e.tableName && this.ns == e.ns) {
+				return this.get(0).equalsExpression(e.get(0));
+			}
+		}
+		return false;
 	}
 
 	public final NameSpace getNameSpace() {
@@ -46,18 +56,12 @@ public class DefSymbol extends Unary {
 	}
 	
 	@Override
-	public boolean isConsumed(Stacker stacker) {
-		return this.inner.isConsumed(stacker);
-	}
-
-	@Override
-	public boolean checkAlwaysConsumed(GrammarChecker checker, String startNonTerminal, UList<String> stack) {
-		this.inner.checkAlwaysConsumed(checker, startNonTerminal, stack);
-		return true;
+	public boolean isConsumed() {
+		return this.inner.isConsumed();
 	}
 	
 	@Override
-	public int inferTypestate(UMap<String> visited) {
+	public int inferTypestate(Visa v) {
 		return Typestate.BooleanType;
 	}
 	@Override
@@ -90,7 +94,7 @@ public class DefSymbol extends Unary {
 	}
 	
 	@Override
-	public Instruction encode(NezCompiler bc, Instruction next, Instruction failjump) {
+	public Instruction encode(NezEncoder bc, Instruction next, Instruction failjump) {
 		return bc.encodeDefSymbol(this, next, failjump);
 	}
 
