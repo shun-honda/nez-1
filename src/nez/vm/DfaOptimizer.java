@@ -1,7 +1,6 @@
 package nez.vm;
 
-import java.util.HashMap;
-
+import nez.lang.Acceptance;
 import nez.lang.Choice;
 import nez.lang.Empty;
 import nez.lang.Expression;
@@ -11,15 +10,11 @@ import nez.lang.GrammarReshaper;
 import nez.lang.NameSpace;
 import nez.lang.NonTerminal;
 import nez.lang.Option;
-import nez.lang.Acceptance;
 import nez.lang.Production;
 import nez.lang.Repetition;
 import nez.lang.Repetition1;
 import nez.lang.Sequence;
-import nez.util.StringUtils;
-import nez.util.UFlag;
 import nez.util.UList;
-import nez.util.UMap;
 
 public class DfaOptimizer extends GrammarReshaper {
 
@@ -295,4 +290,61 @@ class InliningChoice extends GrammarReshaper {
 		}
 		return e1.key().equals(e2.key());
 	}
+}
+
+class EliminatingPredicates extends GrammarReshaper {
+	NameSpace ns;
+
+	public EliminatingPredicates(NameSpace ns) {
+		this.ns = ns;
+	}
+
+	public final Grammar eliminate(Grammar g) {
+
+		g = this.ns.newGrammar(g.getStartProduction().getLocalName());
+		return g;
+	}
+
+}
+
+class FirstStage extends GrammarReshaper {
+	NameSpace ns;
+
+	public FirstStage(NameSpace ns) {
+		this.ns = ns;
+	}
+
+	public Expression reshapeProduction(Production p) {
+		Expression e = p.getExpression().reshape(this);
+		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
+		return e;
+	}
+}
+
+class SecondStage {
+
+}
+
+class CreatingEpsilonOnlyPart extends GrammarReshaper {
+
+}
+
+class CreatingEpsilonFreePart extends GrammarReshaper {
+
+}
+
+class ThirdStage {
+
+}
+
+class DistributeEpsilonOnlyPart extends GrammarReshaper {
+
+}
+
+class EliminatingEpsilonProducingPredicates extends GrammarReshaper {
+
+}
+
+class EliminatingEpsilonFreePredicates extends GrammarReshaper {
+
 }
