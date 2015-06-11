@@ -9,6 +9,7 @@ import nez.lang.GrammarFactory;
 import nez.lang.GrammarReshaper;
 import nez.lang.NameSpace;
 import nez.lang.NonTerminal;
+import nez.lang.Not;
 import nez.lang.Option;
 import nez.lang.Production;
 import nez.lang.Repetition;
@@ -300,7 +301,11 @@ class EliminatingPredicates extends GrammarReshaper {
 	}
 
 	public final Grammar eliminate(Grammar g) {
-
+		NameSpace ns = NameSpace.newNameSpace();
+		FirstStage f = new FirstStage(ns);
+		for(Production p : g.getProductionList()) {
+			f.reshapeProduction(p);
+		}
 		g = this.ns.newGrammar(g.getStartProduction().getLocalName());
 		return g;
 	}
@@ -309,6 +314,7 @@ class EliminatingPredicates extends GrammarReshaper {
 
 class FirstStage extends GrammarReshaper {
 	NameSpace ns;
+	int id = 0;
 
 	public FirstStage(NameSpace ns) {
 		this.ns = ns;
@@ -318,6 +324,41 @@ class FirstStage extends GrammarReshaper {
 		Expression e = p.getExpression().reshape(this);
 		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
 		return e;
+	}
+
+	// f(e1 e2) = AB <- A = f(e1), B = f(e2)
+	@Override
+	public Expression reshapeSequence(Sequence e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		Production A = this.ns.defineProduction(first.getSourcePosition(), "rs" + first.getId(), first);
+		Production B = this.ns.defineProduction(last.getSourcePosition(), "rs" + last.getId(), last);
+		first = GrammarFactory.newNonTerminal(first.getSourcePosition(), this.ns, A.getLocalName());
+		last = GrammarFactory.newNonTerminal(B.getSourcePosition(), this.ns, B.getLocalName());
+		return e.newSequence(first, last);
+	}
+
+	// f(e1 / e2) = A / !A f(e2) <- A = f(e1)
+	@Override
+	public Expression reshapeChoice(Choice e) {
+		Expression e1 = e.get(0).reshape(this), e2 = null;
+		for(int i = 1; i < e.size(); i++) {
+			Production A = this.ns.defineProduction(e1.getSourcePosition(), "rc" + e1.getId(), e1);
+			Expression ne = (NonTerminal) GrammarFactory.newNonTerminal(e1.getSourcePosition(), ns, A.getLocalName());
+			ne = GrammarFactory.newNot(e1.getSourcePosition(), ne);
+			e2 = e.newSequence(ne, e.get(i).reshape(this));
+			e1 = e.newChoice(e1, e2);
+		}
+		return e1;
+	}
+
+	// f(!e) = !A <- A = f(e)
+	@Override
+	public Expression reshapeNot(Not e) {
+		Expression inner = e.get(0).reshape(this);
+		Production A = this.ns.defineProduction(inner.getSourcePosition(), "rn" + inner.getId(), inner);
+		inner = GrammarFactory.newNonTerminal(inner.getSourcePosition(), this.ns, A.getLocalName());
+		return updateInner(e, inner);
 	}
 }
 
