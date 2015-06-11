@@ -1,5 +1,7 @@
 package nez.vm;
 
+import java.util.Stack;
+
 import nez.lang.Acceptance;
 import nez.lang.Choice;
 import nez.lang.Empty;
@@ -410,13 +412,111 @@ class ThirdStage {
 }
 
 class DistributeEpsilonOnlyPart extends GrammarReshaper {
+	NameSpace ns;
+	NonTerminal ne = null;
 
+	public DistributeEpsilonOnlyPart(NameSpace ns, NonTerminal ne) {
+		this.ns = ns;
+		this.ne = ne;
+	}
+
+	public Expression reshapeProduction(Production p) {
+		Expression e = p.getExpression().reshape(this);
+		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
+		return e;
+	}
+
+	public Expression reshapeSequence(Sequence e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		return e.newChoice(first, last);
+	}
+
+	public Expression reshapeChoice(Choice e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		return e.newChoice(first, last);
+	}
+
+	public Expression reshapeNot(Not e) {
+		Expression inner = e.get(0);
+		return updateInner(e, e.newSequence(ne, inner));
+	}
 }
 
 class EliminatingEpsilonProducingPredicates extends GrammarReshaper {
+	NameSpace ns;
+	NonTerminal ne = null;
 
+	public EliminatingEpsilonProducingPredicates(NameSpace ns, NonTerminal ne) {
+		this.ns = ns;
+		this.ne = ne;
+	}
+
+	public Expression reshapeProduction(Production p) {
+		Expression e = p.getExpression().reshape(this);
+		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
+		return e;
+	}
+
+	public Expression reshapeEmpty(Empty e) {
+		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+	}
+
+	public Expression reshapeSequence(Sequence e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		return e.newChoice(first, last);
+	}
+
+	public Expression reshapeChoice(Choice e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		return e.newChoice(first, last);
+	}
+
+	public Expression reshapeNot(Not e) {
+		Expression inner = e.get(0);
+		return updateInner(e, e.newSequence(ne, inner));
+	}
 }
 
 class EliminatingEpsilonFreePredicates extends GrammarReshaper {
+	NameSpace ns;
 
+	public EliminatingEpsilonFreePredicates(NameSpace ns) {
+		this.ns = ns;
+	}
+
+	public Expression reshapeProduction(Production p) {
+		Expression e = p.getExpression().reshape(this);
+		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
+		return e;
+	}
+
+	public Expression reshapeEmpty(Empty e) {
+		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+	}
+
+	public Expression reshapeSequence(Sequence e) {
+		Expression g0First = e.getFirst().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO
+		Expression g0Last = e.getLast().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO
+		Expression first = e.getFirst();
+		Expression last = e.getLast();
+		Expression seq1 = e.newSequence(g0First, last);
+		Expression seq2 = e.newSequence(first, g0Last);
+		Expression seq3 = e.newSequence(first, last);
+		Expression cho = e.newChoice(seq1, seq2);
+		return e.newChoice(cho, seq3);
+	}
+
+	public Expression reshapeChoice(Choice e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		return e.newChoice(first, last);
+	}
+
+	public Expression reshapeNot(Not e) {
+		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+	}
 }
