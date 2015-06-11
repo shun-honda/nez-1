@@ -9,6 +9,7 @@ import nez.lang.GrammarFactory;
 import nez.lang.GrammarReshaper;
 import nez.lang.NameSpace;
 import nez.lang.NonTerminal;
+import nez.lang.Not;
 import nez.lang.Option;
 import nez.lang.Production;
 import nez.lang.Repetition;
@@ -338,19 +339,70 @@ class CreatingEpsilonOnlyPart extends GrammarReshaper {
 		return e;
 	}
 
+	public Expression reshapeNonTerminal(NonTerminal e) {
+		return e.getProduction().reshape(this);
+	}
 
 	public Expression reshapeSequence(Sequence e) {
 		Expression first = e.getFirst().reshape(this);
-		Expression last =e.getLast().reshape(this);
+		Expression last = e.getLast().reshape(this);
 		if(true) { //TODO Epsilon
 			return e.newSequence(first, last);
 		}
 		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
 	}
+
+	public Expression reshapeChoice(Choice e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		return e.newChoice(first, last);
+	}
+
+	public Expression reshapeNot(Not e) {
+		Expression resinner = e.get(0).reshape(this);
+		Expression inner = e.get(0);
+		return updateInner(e, e.newChoice(inner, resinner));
+	}
 }
 
 class CreatingEpsilonFreePart extends GrammarReshaper {
+	NameSpace ns;
 
+	public CreatingEpsilonFreePart(NameSpace ns) {
+		this.ns = ns;
+	}
+
+	public Expression reshapeProduction(Production p) {
+		Expression e = p.getExpression().reshape(this);
+		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
+		return e;
+	}
+
+	public Expression reshapeEmpty(Empty e) {
+		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+	}
+
+	public Expression reshapeSequence(Sequence e) {
+		Expression g0First = e.getFirst().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO
+		Expression g0Last = e.getLast().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO
+		Expression first = e.getFirst();
+		Expression last = e.getLast();
+		Expression seq1 = e.newSequence(g0First, last);
+		Expression seq2 = e.newSequence(first, g0Last);
+		Expression seq3 = e.newSequence(first, last);
+		Expression cho = e.newChoice(seq1, seq2);
+		return e.newChoice(cho, seq3);
+	}
+
+	public Expression reshapeChoice(Choice e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		return e.newChoice(first, last);
+	}
+
+	public Expression reshapeNot(Not e) {
+		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+	}
 }
 
 class ThirdStage {
