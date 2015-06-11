@@ -82,7 +82,7 @@ class DuplicateGrammar extends GrammarReshaper {
 		}
 		return e.newSequence(first, second);
 	}
-	
+
 	private boolean isEmptyChoice(Expression e) {
 		if(e instanceof Choice) {
 			Expression last = e.get(e.size()-1);
@@ -105,7 +105,7 @@ class DuplicateGrammar extends GrammarReshaper {
 }
 
 class InliningChoice extends GrammarReshaper {
-	
+
 	boolean inlining = false;
 	public Expression reshapeProduction(Production p) {
 		this.inlining = false;
@@ -137,7 +137,7 @@ class InliningChoice extends GrammarReshaper {
 //		}
 		return newp;
 	}
-	
+
 	private void flattenChoiceList(Choice parentExpression, UList<Expression> l) {
 		for(Expression subExpression: parentExpression) {
 			subExpression = subExpression.reshape(this);
@@ -149,7 +149,7 @@ class InliningChoice extends GrammarReshaper {
 			}
 		}
 	}
-	
+
 	public Expression reshapeNonTerminal(NonTerminal p) {
 		if(this.inlining) {
 			System.out.println(p.getLocalName());
@@ -162,7 +162,7 @@ class InliningChoice extends GrammarReshaper {
 //		}
 		return p;
 	}
-	
+
 	private boolean isEmptyChoice(Expression e) {
 		if(e instanceof Choice) {
 			return e.get(e.size()-1) instanceof Empty;
@@ -172,7 +172,7 @@ class InliningChoice extends GrammarReshaper {
 		}
 		return false;
 	}
-	
+
 
 	public Expression reshapeSequence(Sequence e) {
 		if(this.inlining) {
@@ -187,9 +187,9 @@ class InliningChoice extends GrammarReshaper {
 		}
 		return super.reshapeSequence(e);
 	}
-	
-	// prediction 
-	
+
+	// prediction
+
 	private Expression selectChoice(Choice choice, UList<Expression> choiceList, int ch) {
 		Expression first = null;
 		UList<Expression> newChoiceList = null;
@@ -211,7 +211,7 @@ class InliningChoice extends GrammarReshaper {
 					continue;
 				}
 				newChoiceList = new UList<Expression>(new Expression[2]);
-				newChoiceList.add(first);				
+				newChoiceList.add(first);
 				newChoiceList.add(p);
 			}
 			else {
@@ -229,7 +229,7 @@ class InliningChoice extends GrammarReshaper {
 		}
 		return commonPrifixed == true ? first.reshape(this) : first;
 	}
-		
+
 	public final static Expression tryCommonFactoring(Expression e, Expression e2, boolean ignoredFirstChar) {
 		int min = sequenceSize(e) < sequenceSize(e2) ? sequenceSize(e) : sequenceSize(e2);
 		int commonIndex = -1;
@@ -269,7 +269,7 @@ class InliningChoice extends GrammarReshaper {
 		GrammarFactory.addSequence(common, GrammarFactory.newChoice(null, l3));
 		return GrammarFactory.newSequence(null, common);
 	}
-	
+
 	private static final int sequenceSize(Expression e) {
 		if(e instanceof Sequence) {
 			return e.size();
@@ -283,7 +283,7 @@ class InliningChoice extends GrammarReshaper {
 		}
 		return e;
 	}
-	
+
 	private static final boolean eaualsExpression(Expression e1, Expression e2) {
 		if(e1.isInterned() && e2.isInterned()) {
 			return e1.getId() == e2.getId();
@@ -326,7 +326,27 @@ class SecondStage {
 }
 
 class CreatingEpsilonOnlyPart extends GrammarReshaper {
+	NameSpace ns;
 
+	public CreatingEpsilonOnlyPart(NameSpace ns) {
+		this.ns = ns;
+	}
+
+	public Expression reshapeProduction(Production p) {
+		Expression e = p.getExpression().reshape(this);
+		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
+		return e;
+	}
+
+
+	public Expression reshapeSequence(Sequence e) {
+		Expression first = e.getFirst().reshape(this);
+		Expression last =e.getLast().reshape(this);
+		if(true) { //TODO Epsilon
+			return e.newSequence(first, last);
+		}
+		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+	}
 }
 
 class CreatingEpsilonFreePart extends GrammarReshaper {
