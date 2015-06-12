@@ -3,6 +3,10 @@ package nez.vm;
 import java.util.Stack;
 
 import nez.lang.Acceptance;
+import nez.lang.And;
+import nez.lang.AnyChar;
+import nez.lang.ByteChar;
+import nez.lang.ByteMap;
 import nez.lang.Choice;
 import nez.lang.Empty;
 import nez.lang.Expression;
@@ -18,6 +22,7 @@ import nez.lang.Production;
 import nez.lang.Repetition;
 import nez.lang.Repetition1;
 import nez.lang.Sequence;
+import nez.lang.Unary;
 import nez.util.UList;
 
 public class DfaOptimizer extends GrammarReshaper {
@@ -33,6 +38,8 @@ public class DfaOptimizer extends GrammarReshaper {
 			System.out.println(p.getLocalName() + "::\n\t"+inlining.reshapeProduction(p));
 		}
 		g = ns.newGrammar(g.getStartProduction().getLocalName());
+		EliminatingPredicates eliminater = new EliminatingPredicates(ns);
+		g = eliminater.eliminate(g);
 		return g;
 	}
 
@@ -300,16 +307,41 @@ class EliminatingPredicates extends GrammarReshaper {
 	NameSpace ns;
 
 	public EliminatingPredicates(NameSpace ns) {
-		this.ns = ns;
+		this.ns = NameSpace.newNameSpace();
+		this.ns.defineProduction(null, "T", GrammarFactory.newAnyChar(null, false));
+		this.ns.defineProduction(null, "Z", GrammarFactory.newChoice(null, GrammarFactory.newSequence(null, GrammarFactory.newNonTerminal(null, ns, "T"), 
+																		GrammarFactory.newNonTerminal(null, ns, "Z")), GrammarFactory.newEmpty(null)));
+		this.ns.defineProduction(null, "F", GrammarFactory.newFailure(null));
 	}
 
 	public final Grammar eliminate(Grammar g) {
-		NameSpace ns = NameSpace.newNameSpace();
+		System.out.println("<Before>\n");
+		for(Production p : g.getProductionList()) {
+			System.out.println(p.getLocalName() + " =");
+			System.out.println("  " + p.getExpression().toString() + "\n");
+		}
 		FirstStage f = new FirstStage(ns);
 		for(Production p : g.getProductionList()) {
 			f.reshapeProduction(p);
 		}
-		g = this.ns.newGrammar(g.getStartProduction().getLocalName());
+		Grammar g1 = ns.newGrammar(g.getStartProduction().getLocalName());
+		System.out.println("<G1>\n");
+		for(Production p : g1.getProductionList()) {
+			System.out.println(p.getLocalName() + " =");
+			System.out.println("  " + p.getExpression().toString() + "\n");
+		}
+		Production es = g1.getStartProduction();
+		CreatingEpsilonOnlyPart g0 = new CreatingEpsilonOnlyPart(ns);
+		Expression g0e = es.reshape(g0);
+		Expression g0ne = GrammarFactory.newNonTerminal(g0e.getSourcePosition(), ns, "g0" + es.getLocalName());
+		es.setExpression(g0ne);
+		ns.defineProduction(es.getSourcePosition(), es.getLocalName(), es.getExpression());
+		g = ns.newGrammar(g.getStartProduction().getLocalName());
+		System.out.println("\n<G2>\n");
+		for(Production p : g.getProductionList()) {
+			System.out.println(p.getLocalName() + " =");
+			System.out.println("  " + p.getExpression().toString() + "\n");
+		}
 		return g;
 	}
 
@@ -347,8 +379,8 @@ class FirstStage extends GrammarReshaper {
 		Expression e1 = e.get(0).reshape(this), e2 = null;
 		for(int i = 1; i < e.size(); i++) {
 			Production A = this.ns.defineProduction(e1.getSourcePosition(), "rc" + e1.getId(), e1);
-			Expression ne = (NonTerminal) GrammarFactory.newNonTerminal(e1.getSourcePosition(), ns, A.getLocalName());
-			ne = GrammarFactory.newNot(e1.getSourcePosition(), ne);
+			e1 = (NonTerminal) GrammarFactory.newNonTerminal(e1.getSourcePosition(), ns, A.getLocalName());
+			Expression ne = GrammarFactory.newNot(e1.getSourcePosition(), e1);
 			e2 = e.newSequence(ne, e.get(i).reshape(this));
 			e1 = e.newChoice(e1, e2);
 		}
@@ -365,10 +397,6 @@ class FirstStage extends GrammarReshaper {
 	}
 }
 
-class SecondStage {
-
-}
-
 class CreatingEpsilonOnlyPart extends GrammarReshaper {
 	NameSpace ns;
 
@@ -378,26 +406,69 @@ class CreatingEpsilonOnlyPart extends GrammarReshaper {
 
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
-		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
+		this.ns.defineProduction(p.getSourcePosition(), "g0" + p.getLocalName(), e);
 		return e;
 	}
 
+	public Expression reshapeByteChar(ByteChar e) {
+		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
+	}
+
+	public Expression reshapeByteMap(ByteMap e) {
+		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
+	}
+
+	public Expression reshapeAnyChar(AnyChar e) {
+		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
+	}
+
 	public Expression reshapeNonTerminal(NonTerminal e) {
-		return e.getProduction().reshape(this);
+		e.getProduction().reshape(this);
+		Expression ne = GrammarFactory.newNonTerminal(e.getSourcePosition(), this.ns, "g0" + e.getLocalName());
+		return ne;
 	}
 
 	public Expression reshapeSequence(Sequence e) {
 		Expression first = e.getFirst().reshape(this);
 		Expression last = e.getLast().reshape(this);
-		if(true) { //TODO Epsilon
+		if(checkEpsilon(first)) {
 			return e.newSequence(first, last);
 		}
-		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
+	}
+
+	public boolean checkEpsilon(Expression e) {
+		if(e instanceof Empty) {
+			return true;
+		}
+		if(e instanceof ByteChar || e instanceof ByteMap || e instanceof AnyChar || e instanceof Failure) {
+			return false;
+		}
+		if(e instanceof NonTerminal) {
+			return checkEpsilon(((NonTerminal) e).getProduction().getExpression());
+		}
+		if(e instanceof Not || e instanceof And) {
+			return true;
+		}
+		if(e instanceof Unary) {
+			return checkEpsilon(e.get(0));
+		}
+		if(e instanceof Sequence || e instanceof Choice) {
+			for(int i = 0; i < e.size(); i++) {
+				if(!checkEpsilon(e.get(i))) {
+					return false;
+				}
+			}
+			return true;
+		}
+		System.out.println("Error: checkEpsilon (" + e + ")");
+		System.exit(1);
+		return false;
 	}
 
 	public Expression reshapeChoice(Choice e) {
-		Expression first = e.getFirst().reshape(this);
-		Expression last = e.getLast().reshape(this);
+		Expression first = e.get(0).reshape(this);
+		Expression last = e.get(1).reshape(this);
 		return e.newChoice(first, last);
 	}
 
