@@ -6,6 +6,7 @@ import nez.lang.Acceptance;
 import nez.lang.Choice;
 import nez.lang.Empty;
 import nez.lang.Expression;
+import nez.lang.Failure;
 import nez.lang.Grammar;
 import nez.lang.GrammarFactory;
 import nez.lang.GrammarReshaper;
@@ -453,6 +454,16 @@ class EliminatingEpsilonProducingPredicates extends GrammarReshaper {
 		this.ne = ne;
 	}
 
+	// n(e, C) = (e (Z/E) / E) C
+	// ne is a scond argument C that is defined function n.
+	public Expression n(Expression e){
+		Expression z = ns.getProduction("Z"); //TODO Z
+		Expression c1 = e.newChoice(z, e.newEmpty());
+		Expression s1 = e.newSequence(e, c1);
+		Expression c2 = e.newChoice(s1, e.newEmpty());
+		return e.newSequence(c2, this.ne);
+	}
+
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
 		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
@@ -460,13 +471,13 @@ class EliminatingEpsilonProducingPredicates extends GrammarReshaper {
 	}
 
 	public Expression reshapeEmpty(Empty e) {
-		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+		return ne;
 	}
 
 	public Expression reshapeSequence(Sequence e) {
 		Expression first = e.getFirst().reshape(this);
 		Expression last = e.getLast().reshape(this);
-		return e.newChoice(first, last);
+		return n(e.newChoice(n(first), n(last)));
 	}
 
 	public Expression reshapeChoice(Choice e) {
@@ -476,8 +487,8 @@ class EliminatingEpsilonProducingPredicates extends GrammarReshaper {
 	}
 
 	public Expression reshapeNot(Not e) {
-		Expression inner = e.get(0);
-		return updateInner(e, e.newSequence(ne, inner));
+		Expression inner = e.get(0); //TODO reshape
+		return n(inner);
 	}
 }
 
@@ -495,28 +506,18 @@ class EliminatingEpsilonFreePredicates extends GrammarReshaper {
 	}
 
 	public Expression reshapeEmpty(Empty e) {
-		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+
 	}
 
 	public Expression reshapeSequence(Sequence e) {
-		Expression g0First = e.getFirst().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO
-		Expression g0Last = e.getLast().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO
-		Expression first = e.getFirst();
-		Expression last = e.getLast();
-		Expression seq1 = e.newSequence(g0First, last);
-		Expression seq2 = e.newSequence(first, g0Last);
-		Expression seq3 = e.newSequence(first, last);
-		Expression cho = e.newChoice(seq1, seq2);
-		return e.newChoice(cho, seq3);
+
 	}
 
 	public Expression reshapeChoice(Choice e) {
-		Expression first = e.getFirst().reshape(this);
-		Expression last = e.getLast().reshape(this);
-		return e.newChoice(first, last);
+
 	}
 
 	public Expression reshapeNot(Not e) {
-		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+
 	}
 }
