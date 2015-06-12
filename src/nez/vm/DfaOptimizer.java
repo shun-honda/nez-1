@@ -324,17 +324,20 @@ class EliminatingPredicates extends GrammarReshaper {
 		for(Production p : g.getProductionList()) {
 			f.reshapeProduction(p);
 		}
-		Grammar g1 = ns.newGrammar(g.getStartProduction().getLocalName());
+		g = ns.newGrammar(g.getStartProduction().getLocalName());
 		System.out.println("<G1>\n");
-		for(Production p : g1.getProductionList()) {
+		for(Production p : g.getProductionList()) {
 			System.out.println(p.getLocalName() + " =");
 			System.out.println("  " + p.getExpression().toString() + "\n");
 		}
-		Production es = g1.getStartProduction();
+		Production es = g.getStartProduction();
 		CreatingEpsilonOnlyPart g0 = new CreatingEpsilonOnlyPart(ns);
 		Expression g0e = es.reshape(g0);
 		Expression g0ne = GrammarFactory.newNonTerminal(g0e.getSourcePosition(), ns, "g0" + es.getLocalName());
-		es.setExpression(g0ne);
+		CreatingEpsilonFreePart g1 = new CreatingEpsilonFreePart(ns);
+		Expression g1e = es.reshape(g1);
+		Expression g1ne = GrammarFactory.newNonTerminal(g1e.getSourcePosition(), ns, "g1" + es.getLocalName());
+		es.setExpression(GrammarFactory.newChoice(null, g0ne, g1ne));
 		ns.defineProduction(es.getSourcePosition(), es.getLocalName(), es.getExpression());
 		g = ns.newGrammar(g.getStartProduction().getLocalName());
 		System.out.println("\n<G2>\n");
@@ -488,12 +491,12 @@ class CreatingEpsilonFreePart extends GrammarReshaper {
 
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
-		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
+		this.ns.defineProduction(p.getSourcePosition(), "g1" + p.getLocalName(), e);
 		return e;
 	}
 
 	public Expression reshapeEmpty(Empty e) {
-		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
 	}
 
 	public Expression reshapeSequence(Sequence e) {
@@ -509,13 +512,13 @@ class CreatingEpsilonFreePart extends GrammarReshaper {
 	}
 
 	public Expression reshapeChoice(Choice e) {
-		Expression first = e.getFirst().reshape(this);
-		Expression last = e.getLast().reshape(this);
+		Expression first = e.get(0).reshape(this);
+		Expression last = e.get(1).reshape(this);
 		return e.newChoice(first, last);
 	}
 
 	public Expression reshapeNot(Not e) {
-		return GrammarFactory.newFailure(e.getSourcePosition()); //TODO F
+		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
 	}
 }
 
