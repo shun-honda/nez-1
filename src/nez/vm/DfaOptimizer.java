@@ -386,15 +386,15 @@ class CreatingEpsilonFreePart extends GrammarReshaper {
 	}
 
 	public Expression reshapeSequence(Sequence e) {
-		Expression g0First = e.getFirst().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO
-		Expression g0Last = e.getLast().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO
+		Expression g0First = e.getFirst().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO reshape from other function
+		Expression g0Last = e.getLast().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO reshape from other function
 		Expression first = e.getFirst();
 		Expression last = e.getLast();
-		Expression seq1 = e.newSequence(g0First, last);
-		Expression seq2 = e.newSequence(first, g0Last);
-		Expression seq3 = e.newSequence(first, last);
-		Expression cho = e.newChoice(seq1, seq2);
-		return e.newChoice(cho, seq3);
+		Expression s1 = e.newSequence(g0First, last);
+		Expression s2 = e.newSequence(first, g0Last);
+		Expression s3 = e.newSequence(first, last);
+		Expression c = e.newChoice(s1, s2);
+		return e.newChoice(c, s3);
 	}
 
 	public Expression reshapeChoice(Choice e) {
@@ -487,7 +487,17 @@ class EliminatingEpsilonProducingPredicates extends GrammarReshaper {
 	}
 
 	public Expression reshapeNot(Not e) {
-		Expression inner = e.get(0); //TODO reshape
+		Expression inner = e.get(0);
+		if(inner instanceof Choice){
+			Expression first = inner.getFirst();
+			Expression last = inner.getLast().reshape(this);
+			inner = e.newChoice(first, last);
+		}else if(inner instanceof Sequence){
+			Expression cFirst = inner.getLast().getFirst();
+			Expression cLast = inner.getLast().getLast().reshape(this);
+			Expression c = e.newChoice(cFirst, cLast);
+			inner = e.newSequence(inner.getFirst(), c);
+		}
 		return n(inner);
 	}
 }
@@ -505,19 +515,21 @@ class EliminatingEpsilonFreePredicates extends GrammarReshaper {
 		return e;
 	}
 
-	public Expression reshapeEmpty(Empty e) {
-
-	}
-
 	public Expression reshapeSequence(Sequence e) {
-
+		if(e.getFirst() instanceof NonTerminal){
+			if(e.getLast() instanceof NonTerminal){
+				return e.newSequence(e.getFirst(), e.getLast());
+			}else{
+				Expression d = e.getLast().reshape(new DistributeEpsilonOnlyPart(this.ns, (NonTerminal)e.getFirst())); //TODO reshape from other function
+				return d.reshape(new EliminatingEpsilonProducingPredicates(this.ns, (NonTerminal)e.getFirst())); //TODO reshape from other function
+			}
+		}
+		return e.getFirst().reshape(new EliminatingEpsilonProducingPredicates(this.ns, (NonTerminal)e.getLast())); //TODO reshape from other function
 	}
 
 	public Expression reshapeChoice(Choice e) {
-
-	}
-
-	public Expression reshapeNot(Not e) {
-
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
+		return e.newChoice(first, last);
 	}
 }
