@@ -34,9 +34,9 @@ public class DfaOptimizer extends GrammarReshaper {
 		for(Production p : g.getProductionList()) {
 			dup.reshapeProduction(p);
 		}
-		for(Production p : ns.getDefinedRuleList()) {
-			System.out.println(p.getLocalName() + "::\n\t"+inlining.reshapeProduction(p));
-		}
+//		for(Production p : ns.getDefinedRuleList()) {
+//			System.out.println(p.getLocalName() + "::\n\t"+inlining.reshapeProduction(p));
+//		}
 		g = ns.newGrammar(g.getStartProduction().getLocalName());
 		EliminatingPredicates eliminater = new EliminatingPredicates(ns);
 		g = eliminater.eliminate(g);
@@ -332,10 +332,22 @@ class EliminatingPredicates extends GrammarReshaper {
 		}
 		Production es = g.getStartProduction();
 		CreatingEpsilonOnlyPart g0 = new CreatingEpsilonOnlyPart(ns);
-		Expression g0e = es.reshape(g0);
+		Expression g0e = g0.reshapeProduction(es);
+//		for(Production p: g.getProductionList()) {
+//			if(p.equals(es)) {
+//				g0e = g0.reshapeProduction(p);
+//			}
+//			g0.reshapeProduction(p);
+//		}
 		Expression g0ne = GrammarFactory.newNonTerminal(g0e.getSourcePosition(), ns, "g0" + es.getLocalName());
 		CreatingEpsilonFreePart g1 = new CreatingEpsilonFreePart(ns);
-		Expression g1e = es.reshape(g1);
+		Expression g1e = null;
+		for(Production p: g.getProductionList()) {
+			if(p.equals(es)) {
+				g1e = g1.reshapeProduction(p);
+			}
+			g1.reshapeProduction(p);
+		}
 		Expression g1ne = GrammarFactory.newNonTerminal(g1e.getSourcePosition(), ns, "g1" + es.getLocalName());
 		es.setExpression(GrammarFactory.newChoice(null, g1ne, g0ne));
 		ns.defineProduction(es.getSourcePosition(), es.getLocalName(), es.getExpression());
@@ -347,9 +359,21 @@ class EliminatingPredicates extends GrammarReshaper {
 		}
 		EliminatingEpsilonProducingPredicates h0 = new EliminatingEpsilonProducingPredicates(ns, (NonTerminal) GrammarFactory.newNonTerminal(null, ns, "T"));
 		Expression h0e = ((NonTerminal) g0ne).getProduction().reshape(h0);
+		for(Production p: g.getProductionList()) {
+			if(p.equals(es)) {
+				continue;
+			}
+			h0.reshapeProduction(p);
+		}
 		Expression h0ne = GrammarFactory.newNonTerminal(h0e.getSourcePosition(), ns, "h0" + ((NonTerminal) g0ne).getLocalName());
 		EliminatingEpsilonFreePredicates h1 = new EliminatingEpsilonFreePredicates(ns);
 		Expression h1e = ((NonTerminal) g1ne).getProduction().reshape(h1);
+		for(Production p: g.getProductionList()) {
+			if(p.equals(es)) {
+				continue;
+			}
+			h1.reshapeProduction(p);
+		}
 		Expression h1ne = GrammarFactory.newNonTerminal(h1e.getSourcePosition(), ns, "h1" + ((NonTerminal) g1ne).getLocalName());
 		es.setExpression(GrammarFactory.newChoice(null, h1ne, h0ne));
 		ns.defineProduction(es.getSourcePosition(), es.getLocalName(), es.getExpression());
@@ -372,6 +396,7 @@ class FirstStage extends GrammarReshaper {
 		this.ns = ns;
 	}
 
+	@Override
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
 		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
@@ -398,7 +423,10 @@ class FirstStage extends GrammarReshaper {
 			Production A = this.ns.defineProduction(e1.getSourcePosition(), "rc" + e1.getId(), e1);
 			e1 = (NonTerminal) GrammarFactory.newNonTerminal(e1.getSourcePosition(), ns, A.getLocalName());
 			Expression ne = GrammarFactory.newNot(e1.getSourcePosition(), e1);
-			e2 = e.newSequence(ne, e.get(i).reshape(this));
+			e2 = e.get(i).reshape(this);
+			Production B = this.ns.defineProduction(e1.getSourcePosition(), "rc" + e2.getId(), e2);
+			e2 = (NonTerminal) GrammarFactory.newNonTerminal(e1.getSourcePosition(), ns, B.getLocalName());
+			e2 = e.newSequence(ne, e2);
 			e1 = e.newChoice(e1, e2);
 		}
 		return e1;
@@ -421,30 +449,34 @@ class CreatingEpsilonOnlyPart extends GrammarReshaper {
 		this.ns = ns;
 	}
 
+	@Override
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
 		this.ns.defineProduction(p.getSourcePosition(), "g0" + p.getLocalName(), e);
 		return e;
 	}
 
+	@Override
 	public Expression reshapeByteChar(ByteChar e) {
 		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
 	}
 
+	@Override
 	public Expression reshapeByteMap(ByteMap e) {
 		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
 	}
 
+	@Override
 	public Expression reshapeAnyChar(AnyChar e) {
 		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
 	}
 
+	@Override
 	public Expression reshapeNonTerminal(NonTerminal e) {
-		e.getProduction().reshape(this);
-		Expression ne = GrammarFactory.newNonTerminal(e.getSourcePosition(), this.ns, "g0" + e.getLocalName());
-		return ne;
+		return e.getProduction().reshape(this);
 	}
 
+	@Override
 	public Expression reshapeSequence(Sequence e) {
 		Expression first = e.getFirst().reshape(this);
 		Expression last = e.getLast().reshape(this);
@@ -483,15 +515,20 @@ class CreatingEpsilonOnlyPart extends GrammarReshaper {
 		return false;
 	}
 
+	@Override
 	public Expression reshapeChoice(Choice e) {
 		Expression first = e.get(0).reshape(this);
 		Expression last = e.get(1).reshape(this);
 		return e.newChoice(first, last);
 	}
 
+	@Override
 	public Expression reshapeNot(Not e) {
 		Expression resinner = e.get(0).reshape(this);
 		Expression inner = e.get(0);
+		if(inner instanceof NonTerminal) {
+			inner = GrammarFactory.newNonTerminal(inner.getSourcePosition(), this.ns, "g0" + ((NonTerminal) inner).getLocalName());
+		}
 		return updateInner(e, e.newChoice(inner, resinner));
 	}
 }
@@ -503,21 +540,30 @@ class CreatingEpsilonFreePart extends GrammarReshaper {
 		this.ns = ns;
 	}
 
+	@Override
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
 		this.ns.defineProduction(p.getSourcePosition(), "g1" + p.getLocalName(), e);
 		return e;
 	}
 
+	@Override
 	public Expression reshapeEmpty(Empty e) {
 		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
 	}
 
+	@Override
+	public Expression reshapeNonTerminal(NonTerminal e) {
+		Expression ne = GrammarFactory.newNonTerminal(e.getSourcePosition(), this.ns, "g1" + e.getLocalName());
+		return ne;
+	}
+
+	@Override
 	public Expression reshapeSequence(Sequence e) {
 		Expression g0First = e.getFirst().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO reshape from other function
 		Expression g0Last = e.getLast().reshape(new CreatingEpsilonOnlyPart(this.ns)); //TODO reshape from other function
-		Expression first = e.getFirst();
-		Expression last = e.getLast();
+		Expression first = e.getFirst().reshape(this);
+		Expression last = e.getLast().reshape(this);
 		Expression s1 = e.newSequence(g0First, last);
 		Expression s2 = e.newSequence(first, g0Last);
 		Expression s3 = e.newSequence(first, last);
@@ -525,19 +571,17 @@ class CreatingEpsilonFreePart extends GrammarReshaper {
 		return e.newChoice(c, s3);
 	}
 
+	@Override
 	public Expression reshapeChoice(Choice e) {
 		Expression first = e.get(0).reshape(this);
 		Expression last = e.get(1).reshape(this);
 		return e.newChoice(first, last);
 	}
 
+	@Override
 	public Expression reshapeNot(Not e) {
 		return GrammarFactory.newNonTerminal(e.getSourcePosition(), ns, "F");
 	}
-}
-
-class ThirdStage {
-
 }
 
 class DistributeEpsilonOnlyPart extends GrammarReshaper {
@@ -549,24 +593,28 @@ class DistributeEpsilonOnlyPart extends GrammarReshaper {
 		this.ne = ne;
 	}
 
+	@Override
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
 		this.ns.defineProduction(p.getSourcePosition(), p.getLocalName(), e);
 		return e;
 	}
 
+	@Override
 	public Expression reshapeSequence(Sequence e) {
 		Expression first = e.getFirst().reshape(this);
 		Expression last = e.getLast().reshape(this);
 		return e.newChoice(first, last);
 	}
 
+	@Override
 	public Expression reshapeChoice(Choice e) {
-		Expression first = e.getFirst().reshape(this);
-		Expression last = e.getLast().reshape(this);
+		Expression first = e.get(0).reshape(this);
+		Expression last = e.get(1).reshape(this);
 		return e.newChoice(first, last);
 	}
 
+	@Override
 	public Expression reshapeNot(Not e) {
 		Expression inner = e.get(0);
 		return updateInner(e, e.newSequence(ne, inner));
@@ -592,39 +640,60 @@ class EliminatingEpsilonProducingPredicates extends GrammarReshaper {
 		return e.newSequence(c2, this.ne);
 	}
 
+	@Override
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
 		this.ns.defineProduction(p.getSourcePosition(), "h0" + p.getLocalName(), e);
 		return e;
 	}
 
+	@Override
+	public Expression reshapeNonTerminal(NonTerminal e) {
+		Expression ne = GrammarFactory.newNonTerminal(e.getSourcePosition(), this.ns, "h0" + e.getLocalName());
+		return ne;
+	}
+
+	@Override
 	public Expression reshapeEmpty(Empty e) {
 		return ne;
 	}
 
+	@Override
 	public Expression reshapeSequence(Sequence e) {
 		Expression first = e.getFirst().reshape(this);
 		Expression last = e.getLast().reshape(this);
 		return n(e.newChoice(n(first), n(last)));
 	}
 
+	@Override
 	public Expression reshapeChoice(Choice e) {
 		Expression first = e.get(0).reshape(this);
 		Expression last = e.get(1).reshape(this);
 		return e.newChoice(first, last);
 	}
 
+	@Override
 	public Expression reshapeNot(Not e) {
 		Expression inner = e.get(0);
 		if(inner instanceof Choice){
 			Expression first = inner.get(0);
+			if(first instanceof NonTerminal) {
+				first = GrammarFactory.newNonTerminal(first.getSourcePosition(), this.ns, "h0" + ((NonTerminal) first).getLocalName());
+			}
 			Expression last = inner.get(1).reshape(this);
 			inner = e.newChoice(first, last);
 		}else if(inner instanceof Sequence){
-			Expression cFirst = inner.getLast().getFirst();
-			Expression cLast = inner.getLast().getLast().reshape(this);
-			Expression c = e.newChoice(cFirst, cLast);
-			inner = e.newSequence(inner.getFirst(), c);
+			Expression first = inner.getLast().get(0);
+			if(first instanceof NonTerminal) {
+				first = GrammarFactory.newNonTerminal(first.getSourcePosition(), this.ns, "h0" + ((NonTerminal) first).getLocalName());
+			}
+			Expression last = inner.getLast().get(1).reshape(this);
+			Expression c = e.newChoice(first, last);
+			first = inner.getFirst();
+			if(first instanceof NonTerminal) {
+				first = GrammarFactory.newNonTerminal(first.getSourcePosition(), this.ns, "h0" + ((NonTerminal) first).getLocalName());
+			}
+			inner = e.newSequence(first, c);
 		}
 		return n(inner);
 	}
@@ -637,27 +706,41 @@ class EliminatingEpsilonFreePredicates extends GrammarReshaper {
 		this.ns = ns;
 	}
 
+	@Override
 	public Expression reshapeProduction(Production p) {
 		Expression e = p.getExpression().reshape(this);
 		this.ns.defineProduction(p.getSourcePosition(), "h1" + p.getLocalName(), e);
 		return e;
 	}
 
+	@Override
+	public Expression reshapeNonTerminal(NonTerminal e) {
+		Expression ne = GrammarFactory.newNonTerminal(e.getSourcePosition(), this.ns, "h1" + e.getLocalName());
+		return ne;
+	}
+
+	@Override
 	public Expression reshapeSequence(Sequence e) {
-		if(e.getFirst() instanceof NonTerminal){
-			if(e.getLast() instanceof NonTerminal){
-				return e.newSequence(e.getFirst(), e.getLast());
+		Expression first = e.getFirst();
+		Expression last = e.getLast();
+		if(first instanceof NonTerminal){
+			first = GrammarFactory.newNonTerminal(e.getSourcePosition(), this.ns, "h1" + ((NonTerminal) first).getLocalName());
+			if(last instanceof NonTerminal){
+				last = GrammarFactory.newNonTerminal(e.getSourcePosition(), this.ns, "h1" + ((NonTerminal) last).getLocalName());
+				return e.newSequence(first, last);
 			}else{
 				Expression d = e.getLast().reshape(new DistributeEpsilonOnlyPart(this.ns, (NonTerminal)e.getFirst())); //TODO reshape from other function
-				return d.reshape(new EliminatingEpsilonProducingPredicates(this.ns, (NonTerminal)e.getFirst())); //TODO reshape from other function
+				return d.reshape(new EliminatingEpsilonProducingPredicates(this.ns, (NonTerminal) first)); //TODO reshape from other function
 			}
 		}
-		else if(e.getLast() instanceof NonTerminal) {
-			return e.getFirst().reshape(new EliminatingEpsilonProducingPredicates(this.ns, (NonTerminal)e.getLast())); //TODO reshape from other function
+		else if(last instanceof NonTerminal) {
+			last = GrammarFactory.newNonTerminal(e.getSourcePosition(), this.ns, "h1" + ((NonTerminal) last).getLocalName());
+			return e.getFirst().reshape(new EliminatingEpsilonProducingPredicates(this.ns, (NonTerminal) last)); //TODO reshape from other function
 		}
 		return e;
 	}
 
+	@Override
 	public Expression reshapeChoice(Choice e) {
 		Expression first = e.get(0).reshape(this);
 		Expression last = e.get(1).reshape(this);
