@@ -526,9 +526,6 @@ class CreatingEpsilonOnlyPart extends GrammarReshaper {
 	public Expression reshapeNot(Not e) {
 		Expression resinner = e.get(0).reshape(this);
 		Expression inner = e.get(0);
-		if(inner instanceof NonTerminal) {
-			inner = GrammarFactory.newNonTerminal(inner.getSourcePosition(), this.ns, "g0" + ((NonTerminal) inner).getLocalName());
-		}
 		return updateInner(e, e.newChoice(inner, resinner));
 	}
 }
