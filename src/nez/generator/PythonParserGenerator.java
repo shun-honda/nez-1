@@ -52,11 +52,13 @@ public class PythonParserGenerator extends NezGenerator {
 		If("argc != 2").Begin().Print("Usage: python [parser_file] [input_file]").Quit().End();
 		Let("f", _func("open", "argvs[1]", "'r'"));
 		Let("inputs", _func("''.join", _func("f.readlines", "")));
+		Let("length", _func("len", "inputs"));
+		Let("inputs", "inputs + '\\0'");
 		Let("parser", _func("PyNez", "inputs"));
 		Let("start", "time.clock()");
 		L("r = ").Func("parser.pFile", "True");
 		If("r == False").Begin().Print("parse error!!").End();
-		ElIf("parser.pos != len(inputs)").Begin().Print("unconsume!!").End();
+		ElIf("parser.pos != length").Begin().Print("unconsume!!").End();
 		Else().Begin().Let("end", "time.clock()").Print("time = {0}[sec]", "(end - start)")
 				.Print("match!!").End();
 	}
@@ -278,7 +280,7 @@ public class PythonParserGenerator extends NezGenerator {
 	}
 
 	protected String _match(String str) {
-		return "self.charInputAt()" + "== " + str;
+		return "self.inputs[self.pos]" + "== " + str;
 	}
 
 	@Override
@@ -300,7 +302,7 @@ public class PythonParserGenerator extends NezGenerator {
 
 	@Override
 	public void visitAnyChar(AnyChar p) {
-		If("self.pos != self.inputSize").Begin().Consume().End().Else().Begin().Fail().End();
+		If("self.inputs[self.pos] != '\\0'").Begin().Consume().End().Else().Begin().Fail().End();
 	}
 
 	@Override
@@ -316,7 +318,8 @@ public class PythonParserGenerator extends NezGenerator {
 		if(!byteMapList.contains(p)) {
 			byteMapList.add(p);
 		}
-		If(_func("self.matchCharMap", "self.map" + p.getId()) + " ==  False").Begin().Fail().End();
+		If("self.map" + p.getId() + "[ord(self.inputs[self.pos])]").Begin().Consume().End();
+		Else().Begin().Fail().End();
 	}
 
 	@Override
@@ -324,16 +327,16 @@ public class PythonParserGenerator extends NezGenerator {
 		String pos = "pos_op" + p.getId();
 		Let(pos, "self.pos");
 		visitExpression(p.get(0));
-		If("result == False").Begin().Let("self.pos", pos).Succ().End();
+		If("not result").Begin().Let("self.pos", pos).Succ().End();
 	}
 
 	@Override
 	public void visitRepetition(Repetition p) {
 		String pos = "pos_op" + p.getId();
-		While("result == True").Begin();
+		While("result").Begin();
 		Let(pos, "self.pos");
 		visitExpression(p.get(0));
-		If("result == False").Begin().Break().End();
+		If("not result").Begin().Break().End();
 		End();
 		Let("self.pos", pos).Succ();
 	}
@@ -341,12 +344,12 @@ public class PythonParserGenerator extends NezGenerator {
 	@Override
 	public void visitRepetition1(Repetition1 p) {
 		visitExpression(p.get(0));
-		If("result == True").Begin();
+		If("result").Begin();
 		String pos = "pos_op" + p.getId();
-		While("result == True").Begin();
+		While("result").Begin();
 		Let(pos, "self.pos");
 		visitExpression(p.get(0));
-		If("result == False").Begin().Break().End();
+		If("not result").Begin().Break().End();
 		End();
 		Let("self.pos", pos).Succ();
 		End();
@@ -366,14 +369,14 @@ public class PythonParserGenerator extends NezGenerator {
 		Let(pos, "self.pos");
 		visitExpression(p.get(0));
 		Let("self.pos", pos);
-		If("result == True").Begin().Fail().End();
+		If("result").Begin().Fail().End();
 		Else().Begin().Succ().End();
 	}
 
 	@Override
 	public void visitSequence(Sequence p) {
 		for(int i = 0; i < p.size(); i++) {
-			If("result == True").Begin();
+			If("result").Begin();
 			visitExpression(p.get(i));
 		}
 		for(int i = 0; i < p.size(); i++) {
@@ -388,7 +391,7 @@ public class PythonParserGenerator extends NezGenerator {
 		for(int i = 0; i < p.size(); i++) {
 			visitExpression(p.get(i));
 			if(i < p.size() - 1) {
-				If("result == False").Begin().Let("self.pos", pos).Succ();
+				If("not result").Begin().Let("self.pos", pos).Succ();
 			}
 		}
 		for(int i = 0; i < p.size() - 1; i++) {
