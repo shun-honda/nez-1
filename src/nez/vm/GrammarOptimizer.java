@@ -41,6 +41,26 @@ public class GrammarOptimizer extends GrammarReshaper {
 		}
 		return false;
 	}
+	
+	public void flattenSequence(Sequence seq, UList<Expression> l) {
+		Expression first = seq.getFirst();
+		Expression last = seq.getLast();
+		if(first instanceof Sequence) {
+			flattenSequence((Sequence) first, l);
+			if(last instanceof Sequence) {
+				flattenSequence((Sequence) last, l);
+				return;
+			}
+			l.add(last);
+			return;
+		}
+		l.add(first);
+		if(last instanceof Sequence) {
+			flattenSequence((Sequence) last, l);
+			return;
+		}
+		l.add(last);
+	}
 
 //	@Override
 //	public Expression reshapeSequence(Sequence p) {
