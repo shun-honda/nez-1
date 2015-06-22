@@ -1,6 +1,7 @@
 package nez.generator;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Stack;
 
 import nez.lang.And;
@@ -62,17 +63,19 @@ public class PythonParserGenerator extends NezGenerator {
 		Let("length", _func("len", "inputs") + " - 1");
 		Let("inputs", "inputs + '\\0'");
 		Let("compiler", _func("ASTMachineCompiler", ""));
-		Let("parser", _func("PyNez", "inputs", "compiler"));
+		Let("memoTable", _func("ElasticTable", "32", String.valueOf(memoPoint)));
+		Let("parser", _func("PyNez", "inputs", "compiler, memoTable"));
 		Let("start", "time.clock()");
 		L("r = ").Func("parser.pFile", "True");
 		L().Func("compiler.encode", "Instruction.Iret", "0", "None");
 		If("r == False").Begin().Print("parse error!!").End();
-		ElIf("parser.pos != length").Begin().Print("unconsume!!").End();
+//		ElIf("parser.pos != length").Begin().Print("unconsume!!").End();
 		Else().Begin().Let("end", "time.clock()").Print("time = {0}[sec]", "(end - start)")
 				.Print("match!!");
-		Let("machine", _func("ASTMachine", ""));
+		Let("machine", _func("ASTMachine", "inputs"));
+		Print("\\nAST Construction:\\n");
 		Let("ast", _func("machine.commitLog", "compiler.func"));
-		L().Func("ast.toString", "");
+		L().Func("ast.dump", "");
 		End();
 	}
 
@@ -95,11 +98,12 @@ public class PythonParserGenerator extends NezGenerator {
 	}
 
 	protected void makeParserClass() {
-		FuncDef("__init__", "self", "inputs, compiler").Begin();
+		FuncDef("__init__", "self", "inputs, compiler, memoTable").Begin();
 		Let("self.pos", "0");
 		Let("self.inputs", "inputs");
 		Let("self.inputSize", _func("len", "inputs"));
 		Let("self.compiler", "compiler");
+		Let("self.memoTable", "memoTable");
 		End().L();
 		FuncDef("charInputAt", "self").Begin();
 		If("self.inputSize == self.pos").Begin().Return("None").End();
@@ -319,7 +323,7 @@ public class PythonParserGenerator extends NezGenerator {
 	}
 
 	protected PythonParserGenerator Ileftcapture() {
-		L().Func("self.compiler.encode", "Instruction.Icapture", "self.pos", "None");
+		L().Func("self.compiler.encode", "Instruction.Ileftcapture", "self.pos", "None");
 		return this;
 	}
 
@@ -338,8 +342,8 @@ public class PythonParserGenerator extends NezGenerator {
 		return this;
 	}
 
-	protected PythonParserGenerator Icall() {
-		L().Func("self.compiler.encode", "Instruction.Icall", "0", "None");
+	protected PythonParserGenerator Icall(String inst) {
+		L().Let(inst, _func("self.compiler.encode", "Instruction.Icall", "0", "None"));
 		return this;
 	}
 
@@ -350,6 +354,50 @@ public class PythonParserGenerator extends NezGenerator {
 
 	protected PythonParserGenerator Abort() {
 		L().Func("self.compiler.abort", "");
+		return this;
+	}
+
+	protected PythonParserGenerator Abort(String arg) {
+		L().Func("self.compiler.abortFunc", arg);
+		return this;
+	}
+
+	protected PythonParserGenerator Lookup(int memoPoint) {
+		Let("m", _func("self.memoTable.getMemo", "self.pos", String.valueOf(memoPoint)));
+		If("m is not None").Begin();
+		If("m.failed").Begin().Let("result", "False").End();
+		Else().Begin();
+		Let("self.pos", "self.pos + m.consumed");
+		L("self.memoTable.stat.Used += 1");
+		Print("memoHit");
+		End();
+		End();
+		return this;
+	}
+
+	protected PythonParserGenerator LookupNode(int memoPoint, int index) {
+		Let("m", _func("self.memoTable.getMemo", "self.pos", String.valueOf(memoPoint)));
+		If("m is not None").Begin();
+		If("m.failed").Begin().Let("result", "False").End();
+		Else().Begin();
+		L().Func("self.compiler.func.list.append", "m.inst");
+		Ilink(index);
+		Let("self.pos", "self.pos + m.consumed");
+		L("self.memoTable.stat.Used += 1");
+		End();
+		End();
+		return this;
+	}
+
+	protected PythonParserGenerator Memoize(int memoPoint, String pos) {
+		L().Func("self.memoTable.setMemo", pos, String.valueOf(memoPoint), "not result", "None",
+				"self.pos -" + pos);
+		return this;
+	}
+
+	protected PythonParserGenerator MemoizeNode(int memoPoint, String pos, String inst) {
+		L().Func("self.memoTable.setMemo", pos, String.valueOf(memoPoint), "not result", inst,
+				"self.pos -" + pos);
 		return this;
 	}
 
@@ -443,11 +491,11 @@ public class PythonParserGenerator extends NezGenerator {
 		Else().Begin().Succ().End();
 	}
 
-	boolean isLeftNew = false;
-	int leftNewIndex = 0;
-
 	@Override
 	public void visitSequence(Sequence p) {
+		Let("index" + p.getId(), _func("len", "self.compiler.func.list"));
+		boolean isLeftNew = false;
+		boolean isLink = false;
 		UList<Expression> list = new UList<>(new Expression[p.size()]);
 		optimizer.flattenSequence(p, list);
 		System.out.println(list.toString());
@@ -456,18 +504,21 @@ public class PythonParserGenerator extends NezGenerator {
 			if(list.get(i) instanceof New) {
 				if(((New) list.get(i)).lefted) {
 					isLeftNew = true;
-					leftNewIndex = i;
 				}
+			}
+			if(list.get(i) instanceof Link) {
+				isLink = true;
 			}
 			visitExpression(list.get(i));
 		}
 		for(int i = list.size(); i > 0; i--) {
 			End();
-			if(isLeftNew) {
-				if(i > leftNewIndex) {
-					Else().Begin().Abort().End();
-				}
-			}
+		}
+		if(isLeftNew) {
+			If("not result").Begin().Abort().End();
+		}
+		else if(isLink) {
+			If("not result").Begin().Abort("index" + p.getId()).End();
 		}
 		isLeftNew = false;
 	}
@@ -487,17 +538,55 @@ public class PythonParserGenerator extends NezGenerator {
 		}
 	}
 
+	HashMap<Integer, Integer> memoMap = new HashMap<Integer, Integer>();
+	int memoPoint = 0;
+
 	@Override
 	public void visitNonTerminal(NonTerminal p) {
-		Let("result", _func("self.p" + p.getLocalName(), "result"));
+		Production rule = p.getProduction();
+		if(rule.isNoNTreeConstruction()) {
+			int memoPoint = 0;
+			if(!memoMap.containsKey(p.getId())) {
+				memoPoint = this.memoPoint++;
+				this.memoMap.put(p.getId(), memoPoint);
+			}
+			else {
+				memoPoint = memoMap.get(p.getId());
+			}
+			Lookup(memoPoint);
+			Else().Begin();
+			Let("pos" + p.getId(), "self.pos");
+			Let("result", _func("self.p" + p.getLocalName(), "result"));
+			Memoize(memoPoint, "pos" + p.getId());
+			End();
+		}
+		else {
+			Let("result", _func("self.p" + p.getLocalName(), "result"));
+		}
 	}
 
 	@Override
 	public void visitLink(Link p) {
-		Icall();
+		int memoPoint = 0;
+		if(!memoMap.containsKey(p.getId())) {
+			memoPoint = this.memoPoint++;
+			this.memoMap.put(p.getId(), memoPoint);
+		}
+		else {
+			memoPoint = memoMap.get(p.getId());
+		}
+		LookupNode(memoPoint, p.index);
+		Else().Begin();
+		String inst = "inst" + p.getId();
+		String pos = "pos" + p.getId();
+		Let(pos, "self.pos");
+		Icall(inst);
 		visitExpression(p.get(0));
-		If("result").Begin().Iret().Ilink(p.index).End();
-		Else().Begin().Abort().End();
+		If("result").Begin().Iret().Ilink(p.index).MemoizeNode(memoPoint, pos, inst).End();
+		Else().Begin().Abort().MemoizeNode(memoPoint, pos, "None").End();
+//		If("result").Begin().Iret().Ilink(p.index).End();
+//		Else().Begin().Abort().End();
+		End();
 	}
 
 	Stack<Boolean> markStack = new Stack<Boolean>();
