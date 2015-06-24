@@ -1,4 +1,4 @@
-package mincaml;
+package nez.mincaml;
 
 import nez.ast.Tag;
 
