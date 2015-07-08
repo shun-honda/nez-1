@@ -3,6 +3,7 @@ package nez.debugger;
 import java.util.Stack;
 
 import nez.NezOption;
+import nez.ast.CommonTree;
 import nez.lang.And;
 import nez.lang.AnyChar;
 import nez.lang.Block;
@@ -16,6 +17,7 @@ import nez.lang.DefSymbol;
 import nez.lang.ExistsSymbol;
 import nez.lang.Expression;
 import nez.lang.Grammar;
+import nez.lang.GrammarFactory;
 import nez.lang.IsIndent;
 import nez.lang.IsSymbol;
 import nez.lang.Link;
@@ -36,6 +38,7 @@ import nez.vm.NezEncoder;
 public class DebugVMCompiler extends NezEncoder {
 	Grammar peg;
 	IRBuilder builder;
+	GrammarAnalyzer analyzer;
 
 	public DebugVMCompiler(NezOption option) {
 		super(option);
@@ -44,7 +47,8 @@ public class DebugVMCompiler extends NezEncoder {
 
 	public Module compile(Grammar grammar) {
 		this.builder.setGrammar(grammar);
-		new GrammarAnalyzer(grammar).analyze();
+		this.analyzer = new GrammarAnalyzer(grammar);
+		this.analyzer.analyze();
 		for(Production p : grammar.getProductionList()) {
 			this.encodeProduction(p);
 		}
@@ -266,6 +270,11 @@ public class DebugVMCompiler extends NezEncoder {
 
 	@Override
 	public Instruction encodeCapture(Capture p, Instruction next) {
+		/* newNode is used in the debugger for rich view */
+		CommonTree node = (CommonTree) p.getSourcePosition();
+		CommonTree newNode = new CommonTree(node.getTag(), node.getSource(),
+				node.getSourcePosition() + node.getLength() - 1, node.getSourcePosition() + node.getLength(), 0, null);
+		p = (Capture) GrammarFactory.newCapture(newNode, p.shift);
 		if(this.option.enabledASTConstruction) {
 			if(this.leftedStack.pop()) {
 				BasicBlock endbb = new BasicBlock();
