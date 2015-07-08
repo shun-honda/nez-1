@@ -44,6 +44,7 @@ public class DebugVMCompiler extends NezEncoder {
 
 	public Module compile(Grammar grammar) {
 		this.builder.setGrammar(grammar);
+		new GrammarAnalyzer(grammar).analyze();
 		for(Production p : grammar.getProductionList()) {
 			this.encodeProduction(p);
 		}
