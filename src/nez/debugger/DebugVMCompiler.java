@@ -203,6 +203,7 @@ public class DebugVMCompiler extends NezEncoder {
 			fbb = new BasicBlock();
 			this.builder.pushFailureJumpPoint(fbb);
 			p.get(i).encode(this, next, failjump);
+			this.builder.createIpop(p.get(i));
 			this.builder.createIjump(p.get(i), mergebb);
 			this.builder.setInsertPoint(this.builder.popFailureJumpPoint());
 			if(i != p.size() - 1) {
@@ -214,7 +215,6 @@ public class DebugVMCompiler extends NezEncoder {
 		}
 		this.builder.createIjump(p.get(p.size() - 1), this.builder.jumpFailureJump());
 		this.builder.setInsertPoint(mergebb);
-		this.builder.createIpop(p.get(p.size() - 1));
 		return null;
 	}
 
