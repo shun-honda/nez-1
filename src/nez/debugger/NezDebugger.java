@@ -8,8 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import nez.ast.CommonTree;
 import nez.lang.Expression;
 import nez.lang.Grammar;
+import nez.lang.NonTerminal;
 import nez.lang.Production;
 import nez.util.ConsoleUtils;
 
@@ -150,6 +152,13 @@ public class NezDebugger {
 				}
 				this.command = p;
 				return;
+			} else if(command.equals("bt")) {
+				if(!running) {
+					ConsoleUtils.println("error: invalid process");
+				} else {
+					this.command = new BackTrace();
+					return;
+				}
 			} else if(command.equals("b") || command.equals("break")) {
 				this.command = new Break();
 				if(tokens.length < 2) {
@@ -248,6 +257,16 @@ public class NezDebugger {
 			} else {
 				ConsoleUtils.println("error: production not found '" + o.code + "'");
 			}
+		}
+		return true;
+	}
+
+	public boolean exec(BackTrace o) {
+		for(int i = 1; i <= this.sc.callStackTop; i++) {
+			NonTerminal ne = (NonTerminal) this.sc.callStack[i].val;
+			CommonTree tree = (CommonTree) ne.getSourcePosition();
+			ConsoleUtils.println("[" + i + "] " + ne.getLocalName() + " ("
+					+ tree.getSource().linenum(tree.getSourcePosition()) + ")");
 		}
 		return true;
 	}

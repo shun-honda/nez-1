@@ -43,6 +43,19 @@ class Print extends DebugOperator {
 	}
 }
 
+class BackTrace extends DebugOperator {
+
+	public BackTrace() {
+		super(DebugOperation.BackTrace);
+	}
+
+	@Override
+	public boolean exec(NezDebugger d) throws MachineExitException {
+		return d.exec(this);
+	}
+
+}
+
 class Break extends DebugOperator {
 
 	public Break() {
@@ -130,6 +143,7 @@ class Exit extends DebugOperator {
 enum DebugOperation {
 	Print,
 	Break,
+	BackTrace,
 	StepOver,
 	StepIn,
 	StepOut,

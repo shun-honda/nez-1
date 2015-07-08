@@ -112,6 +112,7 @@ public abstract class Context implements Source {
 		StackEntry top = this.newCallStackEntry();
 		top.jump = inst.jump;
 		top.failjump = inst.failjump;
+		top.val = inst.ne;
 		return inst.next;
 	}
 
@@ -458,4 +459,5 @@ class StackEntry {
 	DebugVMInstruction failjump;
 	long pos;
 	ASTLog mark;
+	Object val;
 }
