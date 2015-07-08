@@ -19,16 +19,18 @@ public class NezDebugger {
 	List<String> nameList = new ArrayList<String>();
 	DebugOperator command = null;
 	Grammar peg;
+	Module module;
 	DebugVMInstruction code;
 	DebugSourceContext sc;
 	String text = null;
 	int linenum = 0;
 	boolean running = false;
 
-	public NezDebugger(Grammar peg, DebugVMInstruction code, DebugSourceContext sc) {
+	public NezDebugger(Grammar peg, DebugVMInstruction code, DebugSourceContext sc, Module m) {
 		this.peg = peg;
 		this.code = code;
 		this.sc = sc;
+		this.module = m;
 		for(Production p : peg.getProductionList()) {
 			this.ruleMap.put(p.getLocalName(), p);
 			this.nameList.add(p.getLocalName());
@@ -138,6 +140,8 @@ public class NezDebugger {
 						p.setType(Print.printContext);
 					} else if(tokens[pos].equals("-pr")) {
 						p.setType(Print.printProduction);
+					} else if(tokens[pos].equals("-call")) {
+						p.setType(Print.printCallers);
 					}
 					pos++;
 				}
@@ -231,6 +235,16 @@ public class NezDebugger {
 			Production rule = ruleMap.get(o.code);
 			if(rule != null) {
 				ConsoleUtils.println(rule.toString());
+			} else {
+				ConsoleUtils.println("error: production not found '" + o.code + "'");
+			}
+		} else if(o.type == Print.printCallers) {
+			Function f = this.module.get(o.code);
+			if(f != null) {
+				ConsoleUtils.println(f.funcName + " >>");
+				for(int i = 0; i < f.callers.size(); i++) {
+					ConsoleUtils.println("  [" + i + "] " + f.callers.get(i).funcName);
+				}
 			} else {
 				ConsoleUtils.println("error: production not found '" + o.code + "'");
 			}

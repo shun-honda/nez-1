@@ -22,6 +22,7 @@ public abstract class DebugOperator {
 class Print extends DebugOperator {
 	static int printProduction = 0;
 	static int printContext = 1;
+	static int printCallers = 2;
 	int type = 0;
 
 	public Print() {

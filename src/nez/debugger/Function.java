@@ -4,18 +4,29 @@ import java.util.ArrayList;
 import java.util.List;
 
 import nez.lang.Expression;
+import nez.lang.Production;
 
 public class Function {
 	String funcName;
+	Production rule;
 	List<BasicBlock> bbList;
+	List<Function> callers;
 
-	public Function(String funcName) {
-		this.funcName = funcName;
+	public Function(Production rule) {
+		this.funcName = rule.getLocalName();
+		this.rule = rule;
 		this.bbList = new ArrayList<BasicBlock>();
+		this.callers = new ArrayList<Function>();
 	}
 
 	public BasicBlock get(int index) {
 		return this.bbList.get(index);
+	}
+
+	public void setCaller(Function func) {
+		if(!callers.contains(func)) {
+			this.callers.add(func);
+		}
 	}
 
 	public DebugVMInstruction getStartInstruction() {

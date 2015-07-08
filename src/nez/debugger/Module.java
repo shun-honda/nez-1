@@ -38,7 +38,7 @@ public class Module {
 				return func;
 			}
 		}
-		ConsoleUtils.exit(1, "error: NonTerminal is not found " + name);
+		// ConsoleUtils.exit(1, "error: NonTerminal is not found " + name);
 		return null;
 	}
 

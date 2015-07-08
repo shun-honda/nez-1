@@ -173,7 +173,7 @@ public class Grammar {
 		CommonTreeTransducer treeTransducer = new CommonTreeTransducer();
 		s.initContext();
 		pc = c.compile(this).getStartPoint();
-		NezDebugger debugger = new NezDebugger(this, pc, s);
+		NezDebugger debugger = new NezDebugger(this, pc, s, c.getModule());
 		matched = debugger.exec();
 //		NezDebugger debugger = new NezDebugger(this, pc, s);
 //		matched = debugger.exec();

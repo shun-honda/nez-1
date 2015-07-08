@@ -44,6 +44,7 @@ public class IRBuilder {
 					if(inst.op.equals(Opcode.Icall)) {
 						Icall call = (Icall) inst;
 						Function callFunc = this.module.get(call.ne.getLocalName());
+						callFunc.setCaller(f);
 						call.setJump(callFunc.get(0).codePoint);
 						call.next = callFunc.getStartInstruction();
 						bb.setSingleSuccessor(call.jumpBB);
