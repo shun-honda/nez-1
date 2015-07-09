@@ -56,7 +56,11 @@ public abstract class Context implements Source {
 	public final void rollback(long pos) {
 		if(this.longest_pos < this.pos) {
 			this.longest_pos = this.pos;
-			this.longestTrace = this.callStack.clone();
+			this.longestTrace = null;
+			this.longestTrace = new StackEntry[this.callStack.length];
+			for(int i = 0; i < this.callStack.length; i++) {
+				this.longestTrace[i] = this.callStack[i].clone();
+			}
 			this.longestStackTop = this.callStackTop;
 		}
 		this.pos = pos;
@@ -459,10 +463,21 @@ class ASTLog {
 	}
 }
 
-class StackEntry {
+class StackEntry implements Cloneable {
 	DebugVMInstruction jump;
 	DebugVMInstruction failjump;
 	long pos;
 	ASTLog mark;
 	Object val;
+
+	@Override
+	public StackEntry clone() {
+		StackEntry s = null;
+		try {
+			s = (StackEntry) super.clone();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return s;
+	}
 }

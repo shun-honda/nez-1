@@ -76,6 +76,20 @@ public class NezDebugger {
 			}
 		} catch (MachineExitException e) {
 			result = e.result;
+			if(!result) {
+				if(this.sc.longestTrace != null) {
+					for(int i = 1; i <= this.sc.longestStackTop; i++) {
+						NonTerminal ne = (NonTerminal) this.sc.longestTrace[i].val;
+						long pos = this.sc.longestTrace[i].pos;
+						CommonTree tree = (CommonTree) ne.getSourcePosition();
+						ConsoleUtils.println("[" + i + "] " + ne.getLocalName() + " ("
+								+ tree.getSource().linenum(tree.getSourcePosition()) + ")");
+						ConsoleUtils.println(sc.formatDebugPositionLine(pos, ""));
+					}
+				}
+				ConsoleUtils.println(sc.formatDebugPositionLine(this.sc.longest_pos, "[longest]"));
+				ConsoleUtils.println(sc.formatDebugPositionLine(this.sc.pos, "[last]"));
+			}
 		}
 		return result;
 	}
