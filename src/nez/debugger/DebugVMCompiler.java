@@ -211,8 +211,8 @@ public class DebugVMCompiler extends NezEncoder {
 			this.builder.createIjump(p.get(i), mergebb);
 			this.builder.setInsertPoint(this.builder.popFailureJumpPoint());
 			if(i != p.size() - 1) {
-				this.builder.createIsucc(p.get(i));
-				this.builder.createIpeek(p.get(i));
+				this.builder.createIsucc(p.get(i + 1));
+				this.builder.createIpeek(p.get(i + 1));
 			} else {
 				this.builder.createIpop(p.get(i));
 			}

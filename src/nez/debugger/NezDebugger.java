@@ -308,7 +308,11 @@ public class NezDebugger {
 	}
 
 	public boolean exec(StepOver o) throws MachineExitException {
-		if(this.code.op.equals(Opcode.Icall)) {
+		if(this.code.getExpression() instanceof NonTerminal) {
+			while(!this.code.op.equals(Opcode.Icall)) {
+				this.execCode();
+			}
+			this.execCode();
 			int stackTop = this.sc.callStackTop;
 			while(stackTop <= this.sc.callStackTop) {
 				if(!this.execCode()) {
