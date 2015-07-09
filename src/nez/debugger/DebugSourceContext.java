@@ -192,6 +192,14 @@ public abstract class DebugSourceContext extends Context {
 		return delim + source.toString() + delim + marker.toString();
 	}
 
+	public final static DebugSourceContext newStringContext(String str) {
+		return new DebugStringContext(str);
+	}
+
+	public final static DebugSourceContext newStringSourceContext(String resource, long linenum, String str) {
+		return new DebugStringContext(resource, linenum, str);
+	}
+
 	public final static DebugSourceContext newDebugFileContext(String fileName) throws IOException {
 		File f = new File(fileName);
 		if(!f.isFile()) {
