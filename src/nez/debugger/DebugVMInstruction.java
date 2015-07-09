@@ -62,6 +62,28 @@ class Iexit extends DebugVMInstruction {
 	}
 }
 
+class Inop extends DebugVMInstruction {
+	public Inop(Expression e) {
+		super(e);
+		this.op = Opcode.Inop;
+	}
+
+	@Override
+	public void stringfy(StringBuilder sb) {
+		sb.append("Inop");
+	}
+
+	@Override
+	public String toString() {
+		return "Inop";
+	}
+
+	@Override
+	public DebugVMInstruction exec(Context ctx) throws MachineExitException {
+		return this.next;
+	}
+}
+
 abstract class JumpInstruction extends DebugVMInstruction {
 	BasicBlock jumpBB;
 	DebugVMInstruction jump;

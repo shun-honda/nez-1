@@ -2,6 +2,7 @@ package nez.debugger;
 
 public enum Opcode {
 	Iexit,
+	Inop,
 	Icall,
 	Iret,
 	Ijump,

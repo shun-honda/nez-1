@@ -154,6 +154,10 @@ public class IRBuilder {
 		return this.curBB.append(new Iexit(e));
 	}
 
+	public DebugVMInstruction createInop(Expression e) {
+		return this.curBB.append(new Inop(e));
+	}
+
 	public DebugVMInstruction createIcall(NonTerminal e, BasicBlock jump, BasicBlock failjump) {
 		return this.curBB.append(new Icall(e, jump, failjump));
 	}

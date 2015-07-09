@@ -367,6 +367,11 @@ public class NezDebugger {
 	}
 
 	public boolean exec(Run o) throws MachineExitException {
+		Production p = (Production) this.code.getExpression();
+		if(this.breakPointMap.containsKey(p.getLocalName())) {
+			this.code = this.code.exec(this.sc);
+			return false;
+		}
 		while(true) {
 			if(!this.execCode()) {
 				return true;

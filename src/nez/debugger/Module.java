@@ -21,7 +21,13 @@ public class Module {
 	public DebugVMInstruction getStartPoint() {
 		for(Function func : this.funcList) {
 			if(func.funcName.equals(this.g.getStartProduction().getLocalName())) {
-				return func.getStartInstruction();
+				Inop nop = new Inop(this.g.getStartProduction());
+				BasicBlock bb = func.get(0);
+				while(bb.size() == 0) {
+					bb = bb.getSingleSuccessor();
+				}
+				nop.next = bb.get(0);
+				return nop;
 			}
 		}
 		ConsoleUtils.exit(1, "error: StartPoint is not found");
