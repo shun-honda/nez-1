@@ -44,9 +44,20 @@ class Print extends DebugOperator {
 }
 
 class BackTrace extends DebugOperator {
+	static int callStackTrace = 0;
+	static int longestTrace = 1;
+	int type = 0;
 
 	public BackTrace() {
 		super(DebugOperation.BackTrace);
+	}
+
+	public int getType() {
+		return type;
+	}
+
+	public void setType(int type) {
+		this.type = type;
 	}
 
 	@Override

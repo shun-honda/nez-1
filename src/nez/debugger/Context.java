@@ -12,8 +12,10 @@ public abstract class Context implements Source {
 	boolean result;
 	StackEntry[] stack = null;
 	StackEntry[] callStack = null;
+	StackEntry[] longestTrace = null;
 	int StackTop;
 	int callStackTop;
+	int longestStackTop;
 	private static int StackSize = 128;
 
 	public final void initContext() {
@@ -54,6 +56,8 @@ public abstract class Context implements Source {
 	public final void rollback(long pos) {
 		if(this.longest_pos < this.pos) {
 			this.longest_pos = this.pos;
+			this.longestTrace = this.callStack.clone();
+			this.longestStackTop = this.callStackTop;
 		}
 		this.pos = pos;
 	}
@@ -113,6 +117,7 @@ public abstract class Context implements Source {
 		top.jump = inst.jump;
 		top.failjump = inst.failjump;
 		top.val = inst.ne;
+		top.pos = this.pos;
 		return inst.next;
 	}
 
@@ -149,8 +154,8 @@ public abstract class Context implements Source {
 
 	public final DebugVMInstruction opIpeek(Ipeek inst) {
 		StackEntry top = this.peekStack();
-		this.pos = top.pos;
-		if(top.mark != this.lastAppendedLog) {
+		rollback(top.pos);
+		if(top.mark != this.lastAppendedLog && this.result == false) {
 			this.logAbort(top.mark, true);
 		}
 		return inst.next;
@@ -196,7 +201,7 @@ public abstract class Context implements Source {
 
 	/*
 	 * AST Construction Part
-	 **/
+	 */
 
 	private TreeTransducer treeTransducer;
 	private Object left;

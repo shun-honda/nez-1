@@ -157,6 +157,11 @@ public class NezDebugger {
 					ConsoleUtils.println("error: invalid process");
 				} else {
 					this.command = new BackTrace();
+					if(tokens.length != 1) {
+						if(tokens[pos].equals("-l")) {
+							((BackTrace) this.command).setType(BackTrace.longestTrace);
+						}
+					}
 					return;
 				}
 			} else if(command.equals("b") || command.equals("break")) {
@@ -262,11 +267,24 @@ public class NezDebugger {
 	}
 
 	public boolean exec(BackTrace o) {
-		for(int i = 1; i <= this.sc.callStackTop; i++) {
-			NonTerminal ne = (NonTerminal) this.sc.callStack[i].val;
-			CommonTree tree = (CommonTree) ne.getSourcePosition();
-			ConsoleUtils.println("[" + i + "] " + ne.getLocalName() + " ("
-					+ tree.getSource().linenum(tree.getSourcePosition()) + ")");
+		if(o.getType() == BackTrace.longestTrace) {
+			if(this.sc.longestTrace != null) {
+				for(int i = 1; i <= this.sc.longestStackTop; i++) {
+					NonTerminal ne = (NonTerminal) this.sc.longestTrace[i].val;
+					CommonTree tree = (CommonTree) ne.getSourcePosition();
+					ConsoleUtils.println("[" + i + "] " + ne.getLocalName() + " ("
+							+ tree.getSource().linenum(tree.getSourcePosition()) + ")");
+				}
+			} else {
+				ConsoleUtils.println("backtracking has not occurred");
+			}
+		} else {
+			for(int i = 1; i <= this.sc.callStackTop; i++) {
+				NonTerminal ne = (NonTerminal) this.sc.callStack[i].val;
+				CommonTree tree = (CommonTree) ne.getSourcePosition();
+				ConsoleUtils.println("[" + i + "] " + ne.getLocalName() + " ("
+						+ tree.getSource().linenum(tree.getSourcePosition()) + ")");
+			}
 		}
 		return true;
 	}
