@@ -288,6 +288,7 @@ public class NezDebugger {
 					CommonTree tree = (CommonTree) ne.getSourcePosition();
 					ConsoleUtils.println("[" + i + "] " + ne.getLocalName() + " ("
 							+ tree.getSource().linenum(tree.getSourcePosition()) + ")");
+					ConsoleUtils.println(sc.formatDebugPositionLine(this.sc.longestTrace[i].pos, ""));
 				}
 			} else {
 				ConsoleUtils.println("backtracking has not occurred");
@@ -298,6 +299,7 @@ public class NezDebugger {
 				CommonTree tree = (CommonTree) ne.getSourcePosition();
 				ConsoleUtils.println("[" + i + "] " + ne.getLocalName() + " ("
 						+ tree.getSource().linenum(tree.getSourcePosition()) + ")");
+				ConsoleUtils.println(sc.formatDebugPositionLine(this.sc.getPosition(), ""));
 			}
 		}
 		return true;
