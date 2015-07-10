@@ -299,7 +299,7 @@ public class NezDebugger {
 				CommonTree tree = (CommonTree) ne.getSourcePosition();
 				ConsoleUtils.println("[" + i + "] " + ne.getLocalName() + " ("
 						+ tree.getSource().linenum(tree.getSourcePosition()) + ")");
-				ConsoleUtils.println(sc.formatDebugPositionLine(this.sc.getPosition(), ""));
+				ConsoleUtils.println(sc.formatDebugPositionLine(this.sc.callStack[i].pos, ""));
 			}
 		}
 		return true;

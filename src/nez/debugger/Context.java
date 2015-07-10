@@ -24,9 +24,11 @@ public abstract class Context implements Source {
 		this.symbolTable = new SymbolTable();
 		this.stack = new StackEntry[StackSize];
 		this.callStack = new StackEntry[StackSize];
+		this.longestTrace = new StackEntry[StackSize];
 		for(int i = 0; i < this.stack.length; i++) {
 			this.stack[i] = new StackEntry();
 			this.callStack[i] = new StackEntry();
+			this.longestTrace[i] = new StackEntry();
 		}
 		this.callStack[0].jump = new Iexit(null);
 		this.callStack[0].failjump = new Iexit(null);
@@ -54,12 +56,11 @@ public abstract class Context implements Source {
 	}
 
 	public final void rollback(long pos) {
-		if(this.longest_pos < this.pos) {
+		if(this.longest_pos <= this.pos) {
 			this.longest_pos = this.pos;
-			this.longestTrace = null;
-			this.longestTrace = new StackEntry[this.callStack.length];
 			for(int i = 0; i < this.callStack.length; i++) {
-				this.longestTrace[i] = this.callStack[i].clone();
+				this.longestTrace[i].pos = this.callStack[i].pos;
+				this.longestTrace[i].val = this.callStack[i].val;
 			}
 			this.longestStackTop = this.callStackTop;
 		}
@@ -83,11 +84,15 @@ public abstract class Context implements Source {
 		this.callStackTop++;
 		if(this.callStackTop == this.callStack.length) {
 			StackEntry[] newStack = new StackEntry[this.callStack.length * 2];
-			System.arraycopy(this.callStack, 0, newStack, 0, callStack.length);
+			StackEntry[] newTrace = new StackEntry[this.longestTrace.length * 2];
+			System.arraycopy(this.callStack, 0, newStack, 0, this.callStack.length);
+			System.arraycopy(this.longestTrace, 0, newTrace, 0, this.longestTrace.length);
 			for(int i = this.callStack.length; i < newStack.length; i++) {
 				newStack[i] = new StackEntry();
+				newTrace[i] = new StackEntry();
 			}
 			this.callStack = newStack;
+			this.longestTrace = newTrace;
 		}
 		return this.callStack[this.callStackTop];
 	}
