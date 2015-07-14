@@ -1,6 +1,8 @@
 package nez.debugger;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -8,6 +10,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import jline.ArgumentCompletor;
+import jline.Completor;
+import jline.ConsoleReader;
+import jline.MultiCompletor;
+import jline.SimpleCompletor;
 import nez.ast.CommonTree;
 import nez.lang.Expression;
 import nez.lang.Grammar;
@@ -27,6 +34,7 @@ public class NezDebugger {
 	String text = null;
 	int linenum = 0;
 	boolean running = false;
+	ConsoleReader cr;
 
 	public NezDebugger(Grammar peg, DebugVMInstruction code, DebugSourceContext sc, Module m) {
 		this.peg = peg;
@@ -38,6 +46,26 @@ public class NezDebugger {
 			this.nameList.add(p.getLocalName());
 		}
 		ConsoleUtils.addCompleter(this.nameList);
+		try {
+			this.cr = new ConsoleReader();
+			Completor[] br = { new SimpleCompletor(new String[] { "b", "break" }),
+					new SimpleCompletor((String[]) this.nameList.toArray(new String[this.nameList.size()])) };
+			ArgumentCompletor abr = new ArgumentCompletor(br);
+			ArrayList<String> printlist = new ArrayList<String>();
+			printlist.addAll(this.nameList);
+			printlist.addAll(Arrays.asList("-ctx", "-pr", "-call"));
+			Completor[] print = { new SimpleCompletor(new String[] { "p", "print" }),
+					new SimpleCompletor((String[]) printlist.toArray(new String[printlist.size()])) };
+			ArgumentCompletor apr = new ArgumentCompletor(print);
+			Completor[] bt = { new SimpleCompletor(new String[] { "bt" }), new SimpleCompletor("-l") };
+			ArgumentCompletor abt = new ArgumentCompletor(bt);
+			ArgumentCompletor commands = new ArgumentCompletor(
+					new SimpleCompletor(new String[] { "n", "s", "f", "c", "r", "q", "exit", "h" }));
+			MultiCompletor mc = new MultiCompletor(new ArgumentCompletor[] { abr, apr, abt, commands });
+			this.cr.addCompletor(mc);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	class BreakPoint {
@@ -134,104 +162,107 @@ public class NezDebugger {
 
 	private void readLine(String prompt) {
 		while(true) {
-			Object console = ConsoleUtils.getConsoleReader();
-			String line = ConsoleUtils.readSingleLine(console, prompt);
-			if(line == null || line.equals("")) {
-				if(this.command == null) {
-					continue;
-				}
-				return;
-			}
-			String[] tokens = line.split("\\s+");
-			String command = tokens[0];
-			int pos = 1;
-			if(command.equals("p") || command.equals("print")) {
-				Print p = new Print();
-				if(tokens.length < 2) {
-					this.showDebugUsage();
+			try {
+				String line = this.cr.readLine(prompt);
+				if(line == null || line.equals("")) {
+					if(this.command == null) {
+						continue;
+					}
 					return;
 				}
-				if(tokens[pos].startsWith("-")) {
-					if(tokens[pos].equals("-ctx")) {
-						p.setType(Print.printContext);
-					} else if(tokens[pos].equals("-pr")) {
-						p.setType(Print.printProduction);
-					} else if(tokens[pos].equals("-call")) {
-						p.setType(Print.printCallers);
+				String[] tokens = line.split("\\s+");
+				String command = tokens[0];
+				int pos = 1;
+				if(command.equals("p") || command.equals("print")) {
+					Print p = new Print();
+					if(tokens.length < 2) {
+						this.showDebugUsage();
+						return;
 					}
-					pos++;
-				}
-				if(pos < tokens.length) {
-					p.setCode(tokens[pos]);
-				}
-				this.command = p;
-				return;
-			} else if(command.equals("bt")) {
-				if(!running) {
-					ConsoleUtils.println("error: invalid process");
-				} else {
-					this.command = new BackTrace();
-					if(tokens.length != 1) {
-						if(tokens[pos].equals("-l")) {
-							((BackTrace) this.command).setType(BackTrace.longestTrace);
+					if(tokens[pos].startsWith("-")) {
+						if(tokens[pos].equals("-ctx")) {
+							p.setType(Print.printContext);
+						} else if(tokens[pos].equals("-pr")) {
+							p.setType(Print.printProduction);
+						} else if(tokens[pos].equals("-call")) {
+							p.setType(Print.printCallers);
 						}
+						pos++;
 					}
+					if(pos < tokens.length) {
+						p.setCode(tokens[pos]);
+					}
+					this.command = p;
 					return;
-				}
-			} else if(command.equals("b") || command.equals("break")) {
-				this.command = new Break();
-				if(tokens.length < 2) {
+				} else if(command.equals("bt")) {
+					if(!running) {
+						ConsoleUtils.println("error: invalid process");
+					} else {
+						this.command = new BackTrace();
+						if(tokens.length != 1) {
+							if(tokens[pos].equals("-l")) {
+								((BackTrace) this.command).setType(BackTrace.longestTrace);
+							}
+						}
+						return;
+					}
+				} else if(command.equals("b") || command.equals("break")) {
+					this.command = new Break();
+					if(tokens.length < 2) {
+						return;
+					}
+					this.command.setCode(tokens[pos]);
 					return;
-				}
-				this.command.setCode(tokens[pos]);
-				return;
-			} else if(command.equals("n")) {
-				if(!running) {
-					ConsoleUtils.println("error: invalid process");
+				} else if(command.equals("n")) {
+					if(!running) {
+						ConsoleUtils.println("error: invalid process");
+					} else {
+						this.command = new StepOver();
+						return;
+					}
+				} else if(command.equals("s")) {
+					if(!running) {
+						ConsoleUtils.println("error: invalid process");
+					} else {
+						this.command = new StepIn();
+						return;
+					}
+				} else if(command.equals("f") || command.equals("finish")) {
+					if(!running) {
+						ConsoleUtils.println("error: invalid process");
+					} else {
+						this.command = new StepOut();
+						return;
+					}
+				} else if(command.equals("c")) {
+					if(!running) {
+						ConsoleUtils.println("error: invalid process");
+					} else {
+						this.command = new Continue();
+						return;
+					}
+				} else if(command.equals("r") || command.equals("run")) {
+					if(!running) {
+						this.command = new Run();
+						running = true;
+						return;
+					} else {
+						ConsoleUtils.println("error: now running");
+					}
+				} else if(command.equals("q") || command.equals("exit")) {
+					this.command = new Exit();
+					return;
+				} else if(command.equals("h") || command.equals("help")) {
+					this.showDebugUsage();
 				} else {
-					this.command = new StepOver();
-					return;
+					ConsoleUtils.println("command not found: " + command);
+					this.showDebugUsage();
 				}
-			} else if(command.equals("s")) {
-				if(!running) {
-					ConsoleUtils.println("error: invalid process");
-				} else {
-					this.command = new StepIn();
-					return;
-				}
-			} else if(command.equals("f") || command.equals("finish")) {
-				if(!running) {
-					ConsoleUtils.println("error: invalid process");
-				} else {
-					this.command = new StepOut();
-					return;
-				}
-			} else if(command.equals("c")) {
-				if(!running) {
-					ConsoleUtils.println("error: invalid process");
-				} else {
-					this.command = new Continue();
-					return;
-				}
-			} else if(command.equals("r") || command.equals("run")) {
-				if(!running) {
-					this.command = new Run();
-					running = true;
-					return;
-				} else {
-					ConsoleUtils.println("error: now running");
-				}
-			} else if(command.equals("q") || command.equals("exit")) {
-				this.command = new Exit();
-				return;
-			} else if(command.equals("h") || command.equals("help")) {
-				this.showDebugUsage();
-			} else {
-				ConsoleUtils.println("command not found: " + command);
-				this.showDebugUsage();
+				this.cr.getHistory().addToHistory(line);
+				linenum++;
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			ConsoleUtils.addHistory(console, line);
-			linenum++;
 		}
 	}
 
