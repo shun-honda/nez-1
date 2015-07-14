@@ -127,11 +127,15 @@ public abstract class Context implements Source {
 		top.failjump = inst.failjump;
 		top.val = inst.ne;
 		top.pos = this.pos;
+		// top.stackTop = this.StackTop;
 		return inst.next;
 	}
 
 	public final DebugVMInstruction opIret(Iret inst) {
 		StackEntry top = this.popCallStack();
+		// if(top.stackTop != this.StackTop) {
+		// System.out.println("Stack Error: " + top.val);
+		// }
 		if(this.result) {
 			return top.jump;
 		}
@@ -474,15 +478,5 @@ class StackEntry implements Cloneable {
 	long pos;
 	ASTLog mark;
 	Object val;
-
-	@Override
-	public StackEntry clone() {
-		StackEntry s = null;
-		try {
-			s = (StackEntry) super.clone();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return s;
-	}
+	int stackTop;
 }

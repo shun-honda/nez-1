@@ -23,9 +23,7 @@ public class GrammarAnalyzer {
 		boolean error = false;
 		for(Production p : this.peg.getProductionList()) {
 			if(!this.analizeConsumption(p.getExpression())) {
-				if(!this.analizeConsumption(p.getExpression())) {
-					error = true;
-				}
+				error = true;
 			}
 		}
 		if(error) {
@@ -56,6 +54,9 @@ public class GrammarAnalyzer {
 
 	private boolean analizeInnerOfRepetition(Expression p) {
 		p = GrammarOptimizer.resolveNonTerminal(p);
+		if(p instanceof Repetition1) {
+			return true;
+		}
 		if(p instanceof Repetition || p instanceof Option) {
 			return false;
 		}

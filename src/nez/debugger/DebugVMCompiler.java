@@ -164,8 +164,11 @@ public class DebugVMCompiler extends NezEncoder {
 
 	@Override
 	public Instruction encodeAnd(And p, Instruction next, Instruction failjump) {
+		BasicBlock fbb = new BasicBlock();
+		this.builder.pushFailureJumpPoint(fbb);
 		this.builder.createIpush(p);
 		p.get(0).encode(this, next, failjump);
+		this.builder.setInsertPoint(this.builder.popFailureJumpPoint());
 		this.builder.createIpeek(p);
 		this.builder.createIpop(p);
 		this.builder.createIiffail(p, this.builder.jumpFailureJump());
@@ -346,8 +349,10 @@ public class DebugVMCompiler extends NezEncoder {
 			this.builder.createIis(p, this.builder.jumpFailureJump());
 			this.builder.setInsertPoint(new BasicBlock());
 		} else {
+			this.builder.pushFailureJumpPoint(new BasicBlock());
 			this.builder.createIpush(p);
 			p.getSymbolExpression().encode(this, next, failjump);
+			this.builder.setInsertPoint(this.builder.popFailureJumpPoint());
 			this.builder.createIisa(p, this.builder.jumpFailureJump());
 			this.builder.setInsertPoint(new BasicBlock());
 		}
