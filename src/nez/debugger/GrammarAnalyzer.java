@@ -6,6 +6,7 @@ import java.util.List;
 import nez.lang.AnyChar;
 import nez.lang.ByteChar;
 import nez.lang.ByteMap;
+import nez.lang.Capture;
 import nez.lang.Choice;
 import nez.lang.Empty;
 import nez.lang.Expression;
@@ -13,13 +14,16 @@ import nez.lang.Failure;
 import nez.lang.Grammar;
 import nez.lang.GrammarOptimizer;
 import nez.lang.GrammarReshaper;
+import nez.lang.New;
 import nez.lang.NonTerminal;
 import nez.lang.Not;
 import nez.lang.Option;
 import nez.lang.Production;
 import nez.lang.Repetition;
 import nez.lang.Repetition1;
+import nez.lang.Replace;
 import nez.lang.Sequence;
+import nez.lang.Tagging;
 import nez.lang.Unary;
 import nez.util.ConsoleUtils;
 
@@ -32,7 +36,7 @@ public class GrammarAnalyzer {
 
 	public void analyze() {
 		for(Production p : this.peg.getProductionList()) {
-			if(p.getLocalName().equals("Statement")) {
+			if(p.getLocalName().equals("File")) {
 				System.out.println();
 			}
 			this.analizeConsumption(p.getExpression());
@@ -82,7 +86,7 @@ public class GrammarAnalyzer {
 		}
 		if(p instanceof Sequence) {
 			for(int i = 0; i < p.size(); i++) {
-				if(p.get(i).isConsumed()) {
+				if(!isUnconsumedASTConstruction(p.get(i))) {
 					if(this.analizeInnerOfRepetition(p.get(i))) {
 						return true;
 					}
@@ -99,6 +103,13 @@ public class GrammarAnalyzer {
 			return true;
 		}
 		return true;
+	}
+
+	public boolean isUnconsumedASTConstruction(Expression p) {
+		if(p instanceof New || p instanceof Capture || p instanceof Tagging || p instanceof Replace) {
+			return true;
+		}
+		return false;
 	}
 
 }
