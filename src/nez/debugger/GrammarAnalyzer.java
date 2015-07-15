@@ -1,9 +1,12 @@
 package nez.debugger;
 
+import nez.lang.AnyChar;
 import nez.lang.Choice;
 import nez.lang.Expression;
+import nez.lang.Failure;
 import nez.lang.Grammar;
 import nez.lang.GrammarOptimizer;
+import nez.lang.Not;
 import nez.lang.Option;
 import nez.lang.Production;
 import nez.lang.Repetition;
@@ -20,21 +23,18 @@ public class GrammarAnalyzer {
 	}
 
 	public void analyze() {
-		boolean error = false;
 		for(Production p : this.peg.getProductionList()) {
-			if(!this.analizeConsumption(p.getExpression())) {
-				error = true;
+			if(p.getLocalName().equals("Statement")) {
+				System.out.println();
 			}
-		}
-		if(error) {
-			ConsoleUtils.exit(1, "Grammar Error");
+			this.analizeConsumption(p.getExpression());
 		}
 	}
 
 	private boolean analizeConsumption(Expression p) {
 		if(p instanceof Repetition || p instanceof Repetition1) {
 			if(!this.analizeInnerOfRepetition(p.get(0))) {
-				ConsoleUtils.println(p.getSourcePosition().formatSourceMessage("error", "unconsumed Repetition"));
+				ConsoleUtils.println(p.getSourcePosition().formatSourceMessage("warning", "unconsumed Repetition"));
 				return false;
 			}
 		}
@@ -60,13 +60,24 @@ public class GrammarAnalyzer {
 		if(p instanceof Repetition || p instanceof Option) {
 			return false;
 		}
+		if(p instanceof Failure) {
+			return false;
+		}
+		if(p instanceof Not) {
+			if(p.get(0) instanceof AnyChar) {
+				return false;
+			}
+			return this.analizeInnerOfRepetition(p.get(0));
+		}
 		if(p instanceof Unary) {
 			return this.analizeInnerOfRepetition(p.get(0));
 		}
 		if(p instanceof Sequence) {
 			for(int i = 0; i < p.size(); i++) {
-				if(this.analizeInnerOfRepetition(p.get(i))) {
-					return true;
+				if(p.get(i).isConsumed()) {
+					if(this.analizeInnerOfRepetition(p.get(i))) {
+						return true;
+					}
 				}
 			}
 			return false;
