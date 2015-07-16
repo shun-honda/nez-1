@@ -293,9 +293,7 @@ class UnreachableAnalyzer extends GrammarReshaper {
 			p.get(i).reshape(this);
 			this.popConsumeStack(top);
 		}
-		if(this.checkPrefix()) {
-			System.out.println("Unreachable Choice!!");
-		}
+		this.checkPrefix();
 		return p;
 	}
 
@@ -308,29 +306,29 @@ class UnreachableAnalyzer extends GrammarReshaper {
 	}
 
 	public boolean checkPrefix() {
-		for(int i = 1; i < this.cur.next.size(); i++) {
+		for(int i = 0; i < this.cur.next.size(); i++) {
 			Consume c1 = this.cur.next.get(i);
-			for(int j = 0; j < i; j++) {
+			for(int j = i + 1; j < this.cur.next.size(); j++) {
 				Consume c2 = this.cur.next.get(j);
-				int size = c2.consumeList.size();
-				boolean result = true;
-				for(int k = 0; k < c1.consumeList.size(); k++) {
-					if(k < size) {
-						if(c1.consumeList.get(k) != c2.consumeList.get(k)) {
-							result = false;
-							break;
-						}
-					} else {
-						result = false;
-						break;
-					}
-				}
-				if(result) {
-					return true;
+				if(compareConsumeList(c1, c2)) {
+					ConsoleUtils.println(c2.e.get(c2.index).getSourcePosition().formatSourceMessage("warning",
+							"unreachable Choice[" + i + ":" + j + "]"));
 				}
 			}
 		}
 		return false;
+	}
+
+	public boolean compareConsumeList(Consume c1, Consume c2) {
+		if(c1.consumeList.size() > c2.consumeList.size()) {
+			return false;
+		}
+		for(int k = 0; k < c1.consumeList.size(); k++) {
+			if(c1.consumeList.get(k) != c2.consumeList.get(k)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	@Override
