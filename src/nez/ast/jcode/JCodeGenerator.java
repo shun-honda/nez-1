@@ -6,10 +6,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
 
+import org.objectweb.asm.Opcodes;
+
 import nez.ast.jcode.ClassBuilder.MethodBuilder;
 import nez.ast.jcode.ClassBuilder.VarEntry;
-
-import org.objectweb.asm.Opcodes;
 
 public class JCodeGenerator {
 	private Map<String, Class<?>> generatedClassMap = new HashMap<String, Class<?>>();
@@ -122,10 +122,43 @@ public class JCodeGenerator {
 	public void visitBinaryNode(JCodeTree node) {
 		JCodeTree left = node.get(0);
 		JCodeTree right = node.get(1);
+
 		this.visit(left);
 		this.visit(right);
 		this.mBuilder.callStaticMethod(JCodeOperator.class, node.getTypedClass(), node.getTag().getName(),
 				left.getTypedClass(), node.getTypedClass());
+	}
+
+	private Class<?> typeInfferBinary(JCodeTree left, JCodeTree right) {
+		Class<?> leftType = left.getTypedClass();
+		Class<?> rightType = right.getTypedClass();
+		if(leftType == int.class) {
+			if(rightType == int.class) {
+				return int.class;
+			} else if(rightType == double.class) {
+				return double.class;
+			} else if(rightType == String.class) {
+				return String.class;
+			}
+		} else if(leftType == double.class) {
+			if(rightType == int.class) {
+				return double.class;
+			} else if(rightType == double.class) {
+				return double.class;
+			} else if(rightType == String.class) {
+				return String.class;
+			}
+		} else if(leftType == String.class) {
+			return String.class;
+		} else if(leftType == boolean.class) {
+			if(rightType == boolean.class) {
+				return boolean.class;
+			} else if(rightType == String.class) {
+				return String.class;
+			}
+		}
+		new RuntimeException("type error: " + left + ", " + right);
+		return null;
 	}
 
 	public void visitAdd(JCodeTree node) {
@@ -159,47 +192,47 @@ public class JCodeGenerator {
 		this.visitUnaryNode(node);
 	}
 
-	public void visitNull(JCodeTree p){
+	public void visitNull(JCodeTree p) {
 		this.mBuilder.pushNull();
 	}
-	
-//	void visitArray(JCodeTree p){
-//		this.mBuilder.newArray(Object.class);
-//	}
-	
-	public void visitTrue(JCodeTree p){
+
+	// void visitArray(JCodeTree p){
+	// this.mBuilder.newArray(Object.class);
+	// }
+
+	public void visitTrue(JCodeTree p) {
 		this.mBuilder.push(true);
 	}
-	
-	public void visitFalse(JCodeTree p){
+
+	public void visitFalse(JCodeTree p) {
 		this.mBuilder.push(false);
 	}
-	
-	public void visitInteger(JCodeTree p){
-		this.mBuilder.push((Integer)Integer.parseInt(p.getText()));
+
+	public void visitInteger(JCodeTree p) {
+		this.mBuilder.push((Integer) Integer.parseInt(p.getText()));
 	}
-	
-	public void visitOctalInteger(JCodeTree p){
-		this.mBuilder.push((Integer)Integer.parseInt(p.getText(), 8));
+
+	public void visitOctalInteger(JCodeTree p) {
+		this.mBuilder.push((Integer) Integer.parseInt(p.getText(), 8));
 	}
-	
-	public void visitHexInteger(JCodeTree p){
-		this.mBuilder.push((Integer)Integer.parseInt(p.getText(), 16));
+
+	public void visitHexInteger(JCodeTree p) {
+		this.mBuilder.push((Integer) Integer.parseInt(p.getText(), 16));
 	}
-	
-	public void visitDouble(JCodeTree p){
-		this.mBuilder.push((Double)Double.parseDouble(p.getText()));
+
+	public void visitDouble(JCodeTree p) {
+		this.mBuilder.push((Double) Double.parseDouble(p.getText()));
 	}
-	
-	public void visitString(JCodeTree p){
+
+	public void visitString(JCodeTree p) {
 		this.mBuilder.push(p.getText());
 	}
-	
-	public void visitCharacter(JCodeTree p){
+
+	public void visitCharacter(JCodeTree p) {
 		this.mBuilder.push(p.getText());
-		//this.mBuilder.push(p.getText().charAt(0));
+		// this.mBuilder.push(p.getText().charAt(0));
 	}
-	
+
 	public void visitUndefined(JCodeTree p) {
 		System.out.println("undefined: " + p.getClass());
 	}
