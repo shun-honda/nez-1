@@ -6,10 +6,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
 
-import org.objectweb.asm.Opcodes;
-
 import nez.ast.jcode.ClassBuilder.MethodBuilder;
 import nez.ast.jcode.ClassBuilder.VarEntry;
+
+import org.objectweb.asm.Opcodes;
 
 public class JCodeGenerator {
 	private Map<String, Class<?>> generatedClassMap = new HashMap<String, Class<?>>();
@@ -91,10 +91,6 @@ public class JCodeGenerator {
 		}
 	}
 
-	void visitUndefined(JCodeTree node) {
-		System.out.println("undefined: " + node.getTag().getName());
-	}
-
 	protected final Method lookupMethod(String method, String tagName) {
 		Method m = this.methodMap.get(tagName);
 		if(m == null) {
@@ -163,40 +159,49 @@ public class JCodeGenerator {
 		this.visitUnaryNode(node);
 	}
 
-	// void visitNull(JCodeTree p){
-	// this.mBuilder.push();
-	// }
-	public void visitTrue(JCodeTree p) {
+	public void visitNull(JCodeTree p){
+		this.mBuilder.pushNull();
+	}
+	
+//	void visitArray(JCodeTree p){
+//		this.mBuilder.newArray(Object.class);
+//	}
+	
+	public void visitTrue(JCodeTree p){
 		this.mBuilder.push(true);
 	}
-
-	public void visitFalse(JCodeTree p) {
+	
+	public void visitFalse(JCodeTree p){
 		this.mBuilder.push(false);
 	}
-
-	public void visitInteger(JCodeTree p) {
-		this.mBuilder.push(Integer.parseInt(p.getText()));
+	
+	public void visitInteger(JCodeTree p){
+		this.mBuilder.push((Integer)Integer.parseInt(p.getText()));
 	}
-
-	public void visitOctalInteger(JCodeTree p) {
-		this.mBuilder.push(Integer.parseInt(p.getText()));
+	
+	public void visitOctalInteger(JCodeTree p){
+		this.mBuilder.push((Integer)Integer.parseInt(p.getText()));
 	}
-
-	public void visitHexInteger(JCodeTree p) {
-		this.mBuilder.push(Integer.parseInt(p.getText()));
+	
+	public void visitHexInteger(JCodeTree p){
+		this.mBuilder.push((Integer)Integer.parseInt(p.getText()));
 	}
-
-	public void visitDouble(JCodeTree p) {
-		this.mBuilder.push(Double.parseDouble(p.getText()));
+	
+	public void visitDouble(JCodeTree p){
+		this.mBuilder.push((Double)Double.parseDouble(p.getText()));
 	}
-
-	public void visitString(JCodeTree p) {
+	
+	public void visitString(JCodeTree p){
 		this.mBuilder.push(p.getText());
 	}
-
-	public void visitCharacter(JCodeTree p) {
+	
+	public void visitCharacter(JCodeTree p){
 		this.mBuilder.push(p.getText());
-		// this.mBuilder.push(p.getText().charAt(0));
+		//this.mBuilder.push(p.getText().charAt(0));
+	}
+	
+	public void visitUndefined(JCodeTree p) {
+		System.out.println("undefined: " + p.getClass());
 	}
 
 }
