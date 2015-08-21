@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
 
+import javax.lang.model.type.NullType;
+
 import nez.ast.jcode.ClassBuilder.MethodBuilder;
 import nez.ast.jcode.ClassBuilder.VarEntry;
 
@@ -160,6 +162,7 @@ public class JCodeGenerator {
 	}
 
 	public void visitNull(JCodeTree p){
+		p.setType(NullType.class);
 		this.mBuilder.pushNull();
 	}
 	
@@ -168,35 +171,44 @@ public class JCodeGenerator {
 //	}
 	
 	public void visitTrue(JCodeTree p){
+		p.setType(boolean.class);
 		this.mBuilder.push(true);
 	}
 	
 	public void visitFalse(JCodeTree p){
+		p.setType(boolean.class);
 		this.mBuilder.push(false);
 	}
 	
 	public void visitInteger(JCodeTree p){
+		p.setType(int.class);
 		this.mBuilder.push((Integer)Integer.parseInt(p.getText()));
 	}
 	
 	public void visitOctalInteger(JCodeTree p){
+		p.setType(int.class);
 		this.mBuilder.push((Integer)Integer.parseInt(p.getText(), 8));
 	}
 	
 	public void visitHexInteger(JCodeTree p){
+		p.setType(int.class);
 		this.mBuilder.push((Integer)Integer.parseInt(p.getText(), 16));
 	}
 	
 	public void visitDouble(JCodeTree p){
+		p.setType(double.class);
 		this.mBuilder.push((Double)Double.parseDouble(p.getText()));
 	}
 	
 	public void visitString(JCodeTree p){
+		p.setType(String.class);
 		this.mBuilder.push(p.getText());
 	}
 	
 	public void visitCharacter(JCodeTree p){
+		p.setType(String.class);
 		this.mBuilder.push(p.getText());
+		//p.setType(char.class);
 		//this.mBuilder.push(p.getText().charAt(0));
 	}
 	
