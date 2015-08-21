@@ -180,11 +180,11 @@ public class JCodeGenerator {
 	}
 	
 	public void visitOctalInteger(JCodeTree p){
-		this.mBuilder.push((Integer)Integer.parseInt(p.getText()));
+		this.mBuilder.push((Integer)Integer.parseInt(p.getText(), 8));
 	}
 	
 	public void visitHexInteger(JCodeTree p){
-		this.mBuilder.push((Integer)Integer.parseInt(p.getText()));
+		this.mBuilder.push((Integer)Integer.parseInt(p.getText(), 16));
 	}
 	
 	public void visitDouble(JCodeTree p){
