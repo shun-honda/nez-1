@@ -182,22 +182,22 @@ public class JCodeGenerator {
 	
 	public void visitInteger(JCodeTree p){
 		p.setType(int.class);
-		this.mBuilder.push((Integer)Integer.parseInt(p.getText()));
+		this.mBuilder.push(Integer.parseInt(p.getText()));
 	}
 	
 	public void visitOctalInteger(JCodeTree p){
 		p.setType(int.class);
-		this.mBuilder.push((Integer)Integer.parseInt(p.getText(), 8));
+		this.mBuilder.push(Integer.parseInt(p.getText(), 8));
 	}
 	
 	public void visitHexInteger(JCodeTree p){
 		p.setType(int.class);
-		this.mBuilder.push((Integer)Integer.parseInt(p.getText(), 16));
+		this.mBuilder.push(Integer.parseInt(p.getText(), 16));
 	}
 	
 	public void visitDouble(JCodeTree p){
 		p.setType(double.class);
-		this.mBuilder.push((Double)Double.parseDouble(p.getText()));
+		this.mBuilder.push(Double.parseDouble(p.getText()));
 	}
 	
 	public void visitString(JCodeTree p){
