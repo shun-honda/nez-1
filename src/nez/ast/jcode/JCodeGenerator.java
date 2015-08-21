@@ -124,10 +124,43 @@ public class JCodeGenerator {
 	public void visitBinaryNode(JCodeTree node) {
 		JCodeTree left = node.get(0);
 		JCodeTree right = node.get(1);
+
 		this.visit(left);
 		this.visit(right);
 		this.mBuilder.callStaticMethod(JCodeOperator.class, node.getTypedClass(), node.getTag().getName(),
 				left.getTypedClass(), node.getTypedClass());
+	}
+
+	private Class<?> typeInfferBinary(JCodeTree left, JCodeTree right) {
+		Class<?> leftType = left.getTypedClass();
+		Class<?> rightType = right.getTypedClass();
+		if(leftType == int.class) {
+			if(rightType == int.class) {
+				return int.class;
+			} else if(rightType == double.class) {
+				return double.class;
+			} else if(rightType == String.class) {
+				return String.class;
+			}
+		} else if(leftType == double.class) {
+			if(rightType == int.class) {
+				return double.class;
+			} else if(rightType == double.class) {
+				return double.class;
+			} else if(rightType == String.class) {
+				return String.class;
+			}
+		} else if(leftType == String.class) {
+			return String.class;
+		} else if(leftType == boolean.class) {
+			if(rightType == boolean.class) {
+				return boolean.class;
+			} else if(rightType == String.class) {
+				return String.class;
+			}
+		}
+		new RuntimeException("type error: " + left + ", " + right);
+		return null;
 	}
 
 	public void visitAdd(JCodeTree node) {
@@ -211,7 +244,7 @@ public class JCodeGenerator {
 		//p.setType(char.class);
 		//this.mBuilder.push(p.getText().charAt(0));
 	}
-	
+
 	public void visitUndefined(JCodeTree p) {
 		System.out.println("undefined: " + p.getClass());
 	}
