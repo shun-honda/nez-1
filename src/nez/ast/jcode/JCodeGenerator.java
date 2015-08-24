@@ -176,21 +176,48 @@ public class JCodeGenerator {
 
 	}
 
+	public void visitApply(JCodeTree node) {
+		String classPath = "";
+		String methodName = null;
+		JCodeTree fieldNode = node.get(0);
+		JCodeTree argsNode = node.get(1);
+		for(int i = 0; i < fieldNode.size(); i++) {
+			if(i < fieldNode.size() - 2) {
+				classPath += fieldNode.get(i).getText();
+				classPath += ".";
+			} else if(i == fieldNode.size() - 2) {
+				classPath += fieldNode.get(i).getText();
+			} else {
+				methodName = fieldNode.get(i).getText();
+			}
+		}
+		Type[] argTypes = new Type[argsNode.size()];
+		for(int i = 0; i < argsNode.size(); i++) {
+			JCodeTree arg = argsNode.get(i);
+			this.visit(arg);
+			argTypes[i] = Type.getType(arg.getTypedClass());
+		}
+		this.mBuilder.callDynamicMethod("nez/ast/jcode/StandardLibrary", "bootstrap", methodName, classPath, argTypes);
+	}
+
 	public void visitBinaryNode(JCodeTree node) {
 		JCodeTree left = node.get(0);
 		JCodeTree right = node.get(1);
-
 		this.visit(left);
 		this.visit(right);
+		node.setType(typeInfferBinary(node, left, right));
 		this.mBuilder.callStaticMethod(JCodeOperator.class, node.getTypedClass(), node.getTag().getName(),
-				left.getTypedClass(), node.getTypedClass());
+				left.getTypedClass(), right.getTypedClass());
 	}
 
-	private Class<?> typeInfferBinary(JCodeTree left, JCodeTree right) {
+	private Class<?> typeInfferBinary(JCodeTree binary, JCodeTree left, JCodeTree right) {
 		Class<?> leftType = left.getTypedClass();
 		Class<?> rightType = right.getTypedClass();
 		if(leftType == int.class) {
 			if(rightType == int.class) {
+				if(binary.getTag().getName().equals("Div")) {
+					return double.class;
+				}
 				return int.class;
 			} else if(rightType == double.class) {
 				return double.class;
@@ -237,6 +264,7 @@ public class JCodeGenerator {
 	public void visitUnaryNode(JCodeTree node) {
 		JCodeTree child = node.get(0);
 		this.visit(child);
+		node.setType(this.typeInfferUnary(node.get(0)));
 		this.mBuilder.callStaticMethod(JCodeOperator.class, node.getTypedClass(), node.getTag().getName(),
 				child.getTypedClass());
 	}
@@ -249,59 +277,70 @@ public class JCodeGenerator {
 		this.visitUnaryNode(node);
 	}
 
-	public void visitNull(JCodeTree p){
+	private Class<?> typeInfferUnary(JCodeTree node) {
+		Class<?> nodeType = node.getTypedClass();
+		if(nodeType == int.class) {
+			return int.class;
+		} else if(nodeType == double.class) {
+			return double.class;
+		}
+		new RuntimeException("type error: " + node);
+		return null;
+	}
+
+	public void visitNull(JCodeTree p) {
 		p.setType(NullType.class);
 		this.mBuilder.pushNull();
 	}
-	
-//	void visitArray(JCodeTree p){
-//		this.mBuilder.newArray(Object.class);
-//	}
-	
-	public void visitTrue(JCodeTree p){
+
+	// void visitArray(JCodeTree p){
+	// this.mBuilder.newArray(Object.class);
+	// }
+
+	public void visitTrue(JCodeTree p) {
 		p.setType(boolean.class);
 		this.mBuilder.push(true);
 	}
-	
-	public void visitFalse(JCodeTree p){
+
+	public void visitFalse(JCodeTree p) {
 		p.setType(boolean.class);
 		this.mBuilder.push(false);
 	}
-	
-	public void visitInteger(JCodeTree p){
+
+	public void visitInteger(JCodeTree p) {
 		p.setType(int.class);
 		this.mBuilder.push(Integer.parseInt(p.getText()));
 	}
-	
-	public void visitOctalInteger(JCodeTree p){
+
+	public void visitOctalInteger(JCodeTree p) {
 		p.setType(int.class);
 		this.mBuilder.push(Integer.parseInt(p.getText(), 8));
 	}
-	
-	public void visitHexInteger(JCodeTree p){
+
+	public void visitHexInteger(JCodeTree p) {
 		p.setType(int.class);
 		this.mBuilder.push(Integer.parseInt(p.getText(), 16));
 	}
-	
-	public void visitDouble(JCodeTree p){
+
+	public void visitDouble(JCodeTree p) {
 		p.setType(double.class);
 		this.mBuilder.push(Double.parseDouble(p.getText()));
 	}
-	
-	public void visitString(JCodeTree p){
+
+	public void visitString(JCodeTree p) {
 		p.setType(String.class);
 		this.mBuilder.push(p.getText());
 	}
-	
-	public void visitCharacter(JCodeTree p){
+
+	public void visitCharacter(JCodeTree p) {
 		p.setType(String.class);
 		this.mBuilder.push(p.getText());
-		//p.setType(char.class);
-		//this.mBuilder.push(p.getText().charAt(0));
+		// p.setType(char.class);
+		// this.mBuilder.push(p.getText().charAt(0));
 	}
 
 	public void visitUndefined(JCodeTree p) {
-		System.out.println("undefined: " + p.getClass());
+		System.out.println("undefined: " + p.getTag().getName());
 	}
 
 }
