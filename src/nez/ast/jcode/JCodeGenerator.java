@@ -8,6 +8,7 @@ import java.util.Stack;
 
 import javax.lang.model.type.NullType;
 
+import nez.ast.Tag;
 import nez.ast.jcode.ClassBuilder.MethodBuilder;
 import nez.ast.jcode.ClassBuilder.VarEntry;
 
@@ -45,10 +46,6 @@ public class JCodeGenerator {
 
 		public VarEntry getLocalVar(String name) {
 			VarEntry var = this.varMap.get(name);
-			if(var == null) {
-				System.out.println("local variable '" + name + "' is not found");
-				System.exit(1);
-			}
 			return var;
 		}
 	}
@@ -77,6 +74,7 @@ public class JCodeGenerator {
 	}
 
 	HashMap<String, Method> methodMap = new HashMap<String, Method>();
+	private VarEntry var;
 
 	public final void visit(JCodeTree node) {
 		Method m = lookupMethod("visit", node.getTag().getName());
@@ -122,7 +120,7 @@ public class JCodeGenerator {
 		this.mBuilder.endMethod();
 		this.cBuilder.visitEnd();
 	}
-	
+
 	public void visitBlock(JCodeTree node){
 		for(JCodeTree stmt : node){
 			visit(stmt);
@@ -265,10 +263,24 @@ public class JCodeGenerator {
 	}
 
 	public void visitApply(JCodeTree node) {
-		String classPath = "";
-		String methodName = null;
 		JCodeTree fieldNode = node.get(0);
 		JCodeTree argsNode = node.get(1);
+		JCodeTree top = fieldNode.get(0);
+		VarEntry var = null;
+		if(Tag.tag("Name").equals(top.getTag())) {
+			var = this.scope.getLocalVar(top.getText());
+			if(var != null) {
+				this.mBuilder.loadFromVar(var);
+			} else {
+				this.generateRunTimeLibrary(fieldNode, argsNode);
+				return;
+			}
+		}
+	}
+
+	public void generateRunTimeLibrary(JCodeTree fieldNode, JCodeTree argsNode) {
+		String classPath = "";
+		String methodName = null;
 		for(int i = 0; i < fieldNode.size(); i++) {
 			if(i < fieldNode.size() - 2) {
 				classPath += fieldNode.get(i).getText();
@@ -286,6 +298,29 @@ public class JCodeGenerator {
 			argTypes[i] = Type.getType(arg.getTypedClass());
 		}
 		this.mBuilder.callDynamicMethod("nez/ast/jcode/StandardLibrary", "bootstrap", methodName, classPath, argTypes);
+	}
+
+	public void visitField(JCodeTree node) {
+		JCodeTree top = node.get(0);
+		VarEntry var = null;
+		if(Tag.tag("Name").equals(top.getTag())) {
+			var = this.scope.getLocalVar(top.getText());
+			if(var != null) {
+				this.mBuilder.loadFromVar(var);
+			} else {
+				// TODO
+				return;
+			}
+		} else {
+			visit(top);
+		}
+		for(int i = 1; i < node.size(); i++) {
+			JCodeTree member = node.get(i);
+			if(Tag.tag("Name").equals(member.getTag())) {
+				this.mBuilder.getField(Type.getType(var.getVarClass()), member.getText(), Type.getType(Object.class));
+				visit(member);
+			}
+		}
 	}
 
 	public void visitBinaryNode(JCodeTree node) {
