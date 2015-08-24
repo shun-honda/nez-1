@@ -9,6 +9,7 @@ import java.util.Stack;
 import javax.lang.model.type.NullType;
 
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 import nez.ast.jcode.ClassBuilder.MethodBuilder;
 import nez.ast.jcode.ClassBuilder.VarEntry;
@@ -119,6 +120,30 @@ public class JCodeGenerator {
 		this.mBuilder.returnValue(); // return stack top value
 		this.mBuilder.endMethod();
 		this.cBuilder.visitEnd();
+	}
+
+	public void visitApply(JCodeTree node) {
+		String classPath = "";
+		String methodName = null;
+		JCodeTree fieldNode = node.get(0);
+		JCodeTree argsNode = node.get(1);
+		for(int i = 0; i < fieldNode.size(); i++) {
+			if(i < fieldNode.size() - 2) {
+				classPath += fieldNode.get(i).getText();
+				classPath += ".";
+			} else if(i == fieldNode.size() - 2) {
+				classPath += fieldNode.get(i).getText();
+			} else {
+				methodName = fieldNode.get(i).getText();
+			}
+		}
+		Type[] argTypes = new Type[argsNode.size()];
+		for(int i = 0; i < argsNode.size(); i++) {
+			JCodeTree arg = argsNode.get(i);
+			this.visit(arg);
+			argTypes[i] = Type.getType(arg.getTypedClass());
+		}
+		this.mBuilder.callDynamicMethod("nez/ast/jcode/StandardLibrary", "bootstrap", methodName, classPath, argTypes);
 	}
 
 	public void visitBinaryNode(JCodeTree node) {
