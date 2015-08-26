@@ -35,6 +35,13 @@ public class BasicBlock {
 		return inst;
 	}
 
+	public Instruction append(Instruction inst, BasicBlock next, BasicBlock fail) {
+		this.insts.add(inst);
+		this.succs.add(next);
+		this.succs.add(fail);
+		return inst;
+	}
+
 	public BasicBlock add(int index, Instruction inst) {
 		this.insts.add(index, inst);
 		return this;

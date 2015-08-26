@@ -1,4 +1,4 @@
-package nez.mininez;
+package nez.vm;
 
 import nez.NezOption;
 import nez.lang.And;
@@ -26,8 +26,6 @@ import nez.lang.Repetition1;
 import nez.lang.Replace;
 import nez.lang.Sequence;
 import nez.lang.Tagging;
-import nez.vm.Instruction;
-import nez.vm.NezEncoder;
 
 public class MiniNezCompiler extends NezEncoder {
 
