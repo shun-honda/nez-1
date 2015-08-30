@@ -26,46 +26,52 @@ import nez.lang.Repetition1;
 import nez.lang.Replace;
 import nez.lang.Sequence;
 import nez.lang.Tagging;
+import nez.mininez.Module;
 
 public class MiniNezCompiler extends NezEncoder {
 
+	Module module;
+	MiniNezIRBuilder builder;
+
 	public MiniNezCompiler(NezOption option) {
 		super(option);
+		this.module = new Module();
+		this.builder = new MiniNezIRBuilder(this.module);
 	}
 
 	@Override
 	public Instruction encode(Expression e, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		e.encode(this, next, failjump);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeFail(Expression p) {
-		// TODO Auto-generated method stub
+		this.builder.createIfail(p);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeAnyChar(AnyChar p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		this.builder.createIany(p);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeByteChar(ByteChar p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		this.builder.createIbyte(p);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeByteMap(ByteMap p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		this.builder.createIset(p);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeMultiChar(MultiChar p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		this.builder.createIstr(p);
 		return null;
 	}
 

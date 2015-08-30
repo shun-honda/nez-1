@@ -1,6 +1,10 @@
 package nez.vm;
 
+import nez.lang.AnyChar;
+import nez.lang.ByteChar;
+import nez.lang.ByteMap;
 import nez.lang.Expression;
+import nez.lang.MultiChar;
 import nez.lang.Production;
 import nez.mininez.BasicBlock;
 import nez.mininez.Function;
@@ -72,7 +76,7 @@ public class MiniNezIRBuilder {
 	}
 
 	public MiniNezIRBuilder createIexit(boolean status) {
-		this.curBB.append(new IExit(status));
+		this.curBB.append(new MiniNezIExit(status));
 		return this;
 	}
 
@@ -81,60 +85,67 @@ public class MiniNezIRBuilder {
 	}
 
 	public MiniNezIRBuilder createIfail(Expression e) {
-		this.curBB.append(new IFail(e));
+		this.curBB.append(new MiniNezIFail(e));
 		return this;
 	}
 
 	public MiniNezIRBuilder createIalt(Expression e, BasicBlock fail) {
-		this.curBB.append(new IAlt(e, null, null), null, fail);
+		this.curBB.append(new MiniNezIAlt(e, fail));
 		return this;
 	}
 
 	public MiniNezIRBuilder createIsucc(Expression e) {
-		this.curBB.append(new ISucc(e, null));
+		this.curBB.append(new MiniNezISucc(e));
 		return this;
 	}
 
-	public MiniNezIRBuilder createIjump() {
+	public MiniNezIRBuilder createIjump(Expression e, BasicBlock jBB) {
+		this.curBB.append(new MiniNezIJump(e, jBB));
 		return this;
 	}
 
-	public MiniNezIRBuilder createIcall(Production rule, BasicBlock next) {
-		this.curBB.append(new ICall(rule, null), next, null);
+	public MiniNezIRBuilder createIcall(Production rule) {
+		this.curBB.append(new MiniNezICall(rule));
 		return this;
 	}
 
 	public MiniNezIRBuilder createIret(Production rule) {
-		this.curBB.append(new IRet(rule));
+		this.curBB.append(new MiniNezIRet(rule));
 		return this;
 	}
 
 	public MiniNezIRBuilder createIpos(Expression e) {
-		this.curBB.append(new IPos(e, null));
+		this.curBB.append(new MiniNezIPos(e));
 		return this;
 	}
 
-	public MiniNezIRBuilder createIback() {
+	public MiniNezIRBuilder createIback(Expression e) {
+		this.curBB.append(new MiniNezIBack(e));
 		return this;
 	}
 
-	public MiniNezIRBuilder createIskip() {
+	public MiniNezIRBuilder createIskip(Expression e, BasicBlock jBB) {
+		this.curBB.append(new MiniNezISkip(e, jBB));
 		return this;
 	}
 
-	public MiniNezIRBuilder createIbyte() {
+	public MiniNezIRBuilder createIbyte(ByteChar e) {
+		this.curBB.append(new MiniNezIByte(e));
 		return this;
 	}
 
-	public MiniNezIRBuilder createIany() {
+	public MiniNezIRBuilder createIany(AnyChar e) {
+		this.curBB.append(new MiniNezIAny(e));
 		return this;
 	}
 
-	public MiniNezIRBuilder createIstr() {
+	public MiniNezIRBuilder createIstr(MultiChar e) {
+		this.curBB.append(new MiniNezIStr(e));
 		return this;
 	}
 
-	public MiniNezIRBuilder createIset() {
+	public MiniNezIRBuilder createIset(ByteMap e) {
+		this.curBB.append(new MiniNezISet(e));
 		return this;
 	}
 }
