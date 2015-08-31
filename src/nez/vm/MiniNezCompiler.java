@@ -1,5 +1,7 @@
 package nez.vm;
 
+import java.util.HashMap;
+
 import nez.NezOption;
 import nez.lang.And;
 import nez.lang.AnyChar;
@@ -12,6 +14,7 @@ import nez.lang.DefIndent;
 import nez.lang.DefSymbol;
 import nez.lang.ExistsSymbol;
 import nez.lang.Expression;
+import nez.lang.Grammar;
 import nez.lang.IsIndent;
 import nez.lang.IsSymbol;
 import nez.lang.Link;
@@ -21,22 +24,93 @@ import nez.lang.New;
 import nez.lang.NonTerminal;
 import nez.lang.Not;
 import nez.lang.Option;
+import nez.lang.Production;
 import nez.lang.Repetition;
 import nez.lang.Repetition1;
 import nez.lang.Replace;
 import nez.lang.Sequence;
 import nez.lang.Tagging;
+import nez.main.Verbose;
+import nez.mininez.BasicBlock;
+import nez.mininez.Function;
+import nez.mininez.MiniNezInstructionSet;
 import nez.mininez.Module;
+import nez.util.UList;
 
-public class MiniNezCompiler extends NezEncoder {
+public class MiniNezCompiler extends NezCompiler {
 
 	Module module;
+	Function startFunc;
 	MiniNezIRBuilder builder;
+	HashMap<String, BasicBlock> codePointMap = new HashMap<String, BasicBlock>();
 
 	public MiniNezCompiler(NezOption option) {
 		super(option);
 		this.module = new Module();
 		this.builder = new MiniNezIRBuilder(this.module);
+	}
+
+	public NezCode compile(Grammar grammar, ByteCoder coder) {
+		long t = System.nanoTime();
+		UList<Instruction> codeList = new UList<Instruction>(new Instruction[64]);
+		Production startProduction = grammar.getStartProduction();
+		this.encodeStartProduction(startProduction);
+		for(Production p : grammar.getProductionList()) {
+			if(p != startProduction) {
+				this.encodeProduction(p, null);
+			}
+		}
+		this.labeling(codeList);
+		for(Instruction inst : codeList) {
+			if(inst.opcode == MiniNezInstructionSet.Call) {
+				MiniNezICall callInst = (MiniNezICall) inst;
+				callInst.jBB = this.codePointMap.get(callInst.ne.getLocalName());
+			}
+		}
+		long t2 = System.nanoTime();
+		Verbose.printElapsedTime("CompilingTime", t, t2);
+		if(coder != null) {
+			coder.setHeader(codeList.size(), this.module.size(), 0);
+			coder.setInstructions(codeList.ArrayValues, codeList.size());
+			for(Instruction inst : codeList) {
+				System.out.println("[" + inst.id + "]" + inst.toString());
+			}
+		}
+		return new NezCode(codeList.ArrayValues[0], codeList.size(), null);
+	}
+
+	private void labeling(UList<Instruction> codeList) {
+		int id = 0;
+		for(int i = 0; i < this.module.size(); i++) {
+			Function func = this.module.get(i);
+			for(int j = 0; j < func.size(); j++) {
+				BasicBlock bb = func.get(j);
+				bb.setCodePoint(id);
+				for(int k = 0; k < bb.size(); k++) {
+					Instruction inst = bb.get(k);
+					inst.id = id++;
+					codeList.add(inst);
+				}
+			}
+		}
+	}
+
+	protected void encodeStartProduction(Production p) {
+		this.startFunc = new Function(p);
+		this.builder.setFunction(this.startFunc);
+		this.builder.setInsertPoint(new BasicBlock());
+		this.builder.createIexit(false);
+		this.builder.createIexit(true);
+		this.encode(p, null, null);
+		this.builder.createIret(p);
+	}
+
+	protected void encodeProduction(Production p, Instruction next) {
+		Function func = new Function(p);
+		this.builder.setFunction(func);
+		this.builder.setInsertPoint(new BasicBlock());
+		this.encode(p, next, null);
+		this.builder.createIret(p);
 	}
 
 	@Override
@@ -77,7 +151,13 @@ public class MiniNezCompiler extends NezEncoder {
 
 	@Override
 	public Instruction encodeOption(Option p, Instruction next) {
-		// TODO Auto-generated method stub
+		BasicBlock fBB = new BasicBlock();
+		BasicBlock mergeBB = new BasicBlock();
+		this.builder.createIalt(p, fBB);
+		this.encode(p.get(0), next, null);
+		this.builder.setInsertPoint(fBB);
+		this.builder.createIsucc(p);
+		this.builder.setInsertPoint(mergeBB);
 		return null;
 	}
 

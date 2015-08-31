@@ -17,7 +17,7 @@ public class MiniNezInstructionSet {
 	public final static byte Str = 12; // match string
 	public final static byte Set = 13; // match set
 
-	public final static byte Exit = 52; // 7-bit only
+	public final static byte Exit = 14; // 7-bit only
 
-	public final static byte Label = 127; // 7-bit
+	public final static byte Label = 15; // 7-bit
 }

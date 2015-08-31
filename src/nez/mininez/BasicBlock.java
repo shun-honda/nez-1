@@ -22,6 +22,14 @@ public class BasicBlock {
 		return this.insts.get(index);
 	}
 
+	public void setCodePoint(int codePoint) {
+		this.codePoint = codePoint;
+	}
+
+	public int getCodePoint() {
+		return this.codePoint;
+	}
+
 	public Instruction getStartInstruction() {
 		BasicBlock bb = this;
 		while(bb.size() == 0) {
