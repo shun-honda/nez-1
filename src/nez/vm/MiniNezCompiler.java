@@ -64,7 +64,7 @@ public class MiniNezCompiler extends NezCompiler {
 		for(Instruction inst : codeList) {
 			if(inst.opcode == MiniNezInstructionSet.Call) {
 				MiniNezICall callInst = (MiniNezICall) inst;
-				callInst.jBB = this.codePointMap.get(callInst.ne.getLocalName());
+				callInst.jBB = this.codePointMap.get(((Production) callInst.e).getLocalName());
 			}
 		}
 		long t2 = System.nanoTime();
@@ -83,6 +83,7 @@ public class MiniNezCompiler extends NezCompiler {
 		int id = 0;
 		for(int i = 0; i < this.module.size(); i++) {
 			Function func = this.module.get(i);
+			this.codePointMap.put(func.getName(), func.get(0));
 			for(int j = 0; j < func.size(); j++) {
 				BasicBlock bb = func.get(j);
 				bb.setCodePoint(id);
@@ -152,84 +153,111 @@ public class MiniNezCompiler extends NezCompiler {
 	@Override
 	public Instruction encodeOption(Option p, Instruction next) {
 		BasicBlock fBB = new BasicBlock();
-		BasicBlock mergeBB = new BasicBlock();
 		this.builder.createIalt(p, fBB);
 		this.encode(p.get(0), next, null);
-		this.builder.setInsertPoint(fBB);
 		this.builder.createIsucc(p);
-		this.builder.setInsertPoint(mergeBB);
+		this.builder.setInsertPoint(fBB);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeRepetition(Repetition p, Instruction next) {
-		// TODO Auto-generated method stub
+		BasicBlock fBB = new BasicBlock();
+		BasicBlock topBB = new BasicBlock();
+		this.builder.createIalt(p, fBB);
+		this.builder.setInsertPoint(topBB);
+		this.encode(p.get(0), next, null);
+		this.builder.createIskip(p, topBB);
+		this.builder.setInsertPoint(fBB);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeRepetition1(Repetition1 p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		this.encode(p.get(0), next, failjump);
+		this.encodeRepetition(p, next);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeAnd(And p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		BasicBlock fBB = new BasicBlock();
+		this.builder.createIalt(p, fBB);
+		this.encode(p.get(0), next, failjump);
+		this.builder.createIsucc(p);
+		this.builder.setInsertPoint(fBB);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeNot(Not p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		BasicBlock fBB = new BasicBlock();
+		this.builder.createIalt(p, fBB);
+		this.encode(p.get(0), next, failjump);
+		this.builder.createIsucc(p);
+		this.builder.createIfail(p);
+		this.builder.setInsertPoint(fBB);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeSequence(Sequence p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		for(int i = 0; i < p.size(); i++) {
+			this.encode(p.get(i), next, failjump);
+		}
 		return null;
 	}
 
 	@Override
 	public Instruction encodeChoice(Choice p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		BasicBlock fBB = new BasicBlock();
+		BasicBlock endBB = new BasicBlock();
+		for(int i = 0; i < p.size(); i++) {
+			if(i < p.size() - 1) {
+				this.builder.createIalt(p, fBB);
+				this.encode(p.get(i), next, failjump);
+				this.builder.createIsucc(p);
+				this.builder.createIjump(p, endBB);
+				this.builder.setInsertPoint(fBB);
+				fBB = new BasicBlock();
+			} else {
+				this.encode(p.get(i), next, failjump);
+			}
+		}
+		this.builder.setInsertPoint(endBB);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeNonTerminal(NonTerminal p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		Production rule = p.getProduction();
+		this.builder.createIcall(rule);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeLink(Link p, Instruction next, Instruction failjump) {
-		// TODO Auto-generated method stub
+		this.encode(p.get(0), next, failjump);
 		return null;
 	}
 
 	@Override
 	public Instruction encodeNew(New p, Instruction next) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Instruction encodeCapture(Capture p, Instruction next) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Instruction encodeTagging(Tagging p, Instruction next) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Instruction encodeReplace(Replace p, Instruction next) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

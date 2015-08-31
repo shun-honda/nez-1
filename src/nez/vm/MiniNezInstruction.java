@@ -17,6 +17,16 @@ public abstract class MiniNezInstruction extends Instruction {
 		super(opcode, e, null);
 	}
 
+	@Override
+	protected void stringfy(StringBuilder sb) {
+		sb.append(MiniNezInstructionSet.stringfy(this.opcode));
+		String op = getOperand();
+		if(op != null) {
+			sb.append(" ");
+			sb.append(op);
+		}
+	}
+
 }
 
 class MiniNezIFail extends MiniNezInstruction {
@@ -50,12 +60,12 @@ class MiniNezIAlt extends MiniNezInstruction {
 
 	@Override
 	protected String getOperand() {
-		return this.fBB.getName() + "  ## " + e;
+		return "jmp:" + this.fBB.getCodePoint() + "  ## " + e;
 	}
 
 	@Override
 	void encodeA(ByteCoder c) {
-		// c.encodeJumpAddr(this.failjump);
+		((MiniNezByteCoder) c).encodeJumpAddr(this.fBB.getCodePoint());
 	}
 
 	@Override
@@ -91,8 +101,13 @@ class MiniNezISkip extends MiniNezInstruction {
 	}
 
 	@Override
+	protected String getOperand() {
+		return "jmp:" + this.jBB.getCodePoint() + "  ## " + e;
+	}
+
+	@Override
 	void encodeA(ByteCoder c) {
-		// No argument
+		((MiniNezByteCoder) c).encodeJumpAddr(this.jBB.getCodePoint());
 	}
 
 	@Override
@@ -110,8 +125,13 @@ class MiniNezIJump extends MiniNezInstruction {
 	}
 
 	@Override
+	protected String getOperand() {
+		return "jmp:" + this.jBB.getCodePoint() + "  ## " + e;
+	}
+
+	@Override
 	void encodeA(ByteCoder c) {
-		// No argument
+		((MiniNezByteCoder) c).encodeJumpAddr(this.jBB.getCodePoint());
 	}
 
 	@Override
@@ -192,12 +212,12 @@ class MiniNezICall extends MiniNezInstruction {
 
 	@Override
 	protected String getOperand() {
-		return jBB.getName();
+		return "jmp:" + jBB.getCodePoint() + "  ## " + e;
 	}
 
 	@Override
 	void encodeA(ByteCoder c) {
-		// c.encodeJumpAddr(this.jump);
+		((MiniNezByteCoder) c).encodeJumpAddr(this.jBB.getCodePoint());
 		c.encodeNonTerminal(rule.getLocalName()); // debug information
 	}
 

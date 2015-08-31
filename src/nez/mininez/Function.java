@@ -30,6 +30,10 @@ public class Function {
 		}
 	}
 
+	public String getName() {
+		return this.rule.getLocalName();
+	}
+
 	public Instruction getStartInstruction() {
 		BasicBlock bb = this.get(0);
 		while(bb.size() == 0) {

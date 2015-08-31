@@ -20,4 +20,47 @@ public class MiniNezInstructionSet {
 	public final static byte Exit = 14; // 7-bit only
 
 	public final static byte Label = 15; // 7-bit
+
+	public static String stringfy(byte opcode) {
+		switch(opcode) {
+		case Nop:
+			return "nop";
+		case Fail:
+			return "fail";
+		case Alt:
+			return "alt";
+		case Succ:
+			return "succ";
+		case Jump:
+			return "jump";
+		case Call:
+			return "call";
+		case Ret:
+			return "ret";
+		case Pos:
+			return "pos";
+		case Back:
+			return "back";
+		case Skip:
+			return "skip";
+
+		case Byte:
+			return "byte";
+		case Any:
+			return "any";
+		case Str:
+			return "str";
+		case Set:
+			return "set";
+
+		case Exit:
+			return "exit";
+
+		case Label:
+			return "label";
+
+		default:
+			return "-";
+		}
+	}
 }
