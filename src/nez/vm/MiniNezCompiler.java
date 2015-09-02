@@ -15,6 +15,7 @@ import nez.lang.DefSymbol;
 import nez.lang.ExistsSymbol;
 import nez.lang.Expression;
 import nez.lang.Grammar;
+import nez.lang.GrammarFactory;
 import nez.lang.IsIndent;
 import nez.lang.IsSymbol;
 import nez.lang.Link;
@@ -140,13 +141,44 @@ public class MiniNezCompiler extends NezCompiler {
 
 	@Override
 	public Instruction encodeByteMap(ByteMap p, Instruction next, Instruction failjump) {
-		this.builder.createIset(p);
+		if(this.option.enabledLexicalOptimization) {
+			this.builder.createIset(p);
+		} else {
+			BasicBlock fBB = null;
+			BasicBlock mergeBB = new BasicBlock();
+			int max = 0;
+			for(int i = 0; i < p.byteMap.length; i++) {
+				if(p.byteMap[i]) {
+					max = i;
+				}
+			}
+			for(int i = 0; i < max; i++) {
+				if(p.byteMap[i]) {
+					fBB = new BasicBlock();
+					this.builder.createIalt(p, fBB);
+					this.builder
+							.createIbyte((ByteChar) GrammarFactory.newByteChar(p.getSourcePosition(), p.isBinary(), i));
+					this.builder.createIsucc(p);
+					this.builder.createIjump(p, mergeBB);
+					this.builder.setInsertPoint(fBB);
+				}
+			}
+			this.builder.createIbyte((ByteChar) GrammarFactory.newByteChar(p.getSourcePosition(), p.isBinary(), max));
+			this.builder.setInsertPoint(mergeBB);
+		}
 		return null;
 	}
 
 	@Override
 	public Instruction encodeMultiChar(MultiChar p, Instruction next, Instruction failjump) {
-		this.builder.createIstr(p);
+		if(this.option.enabledLexicalOptimization) {
+			this.builder.createIstr(p);
+		} else {
+			for(int i = 0; i < p.byteSeq.length; i++) {
+				this.builder.createIbyte(
+						(ByteChar) GrammarFactory.newByteChar(p.getSourcePosition(), p.isBinary(), p.byteSeq[i]));
+			}
+		}
 		return null;
 	}
 
