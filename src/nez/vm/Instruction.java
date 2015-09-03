@@ -249,6 +249,35 @@ class ILabel extends Instruction {
 	}
 }
 
+class IJump extends Instruction {
+	public Instruction jump = null;
+
+	IJump(Expression e, Instruction next) {
+		super(InstructionSet.Jump, e, next);
+	}
+
+	void setResolvedJump(Instruction jump) {
+		assert (this.jump == null);
+		this.jump = labeling(this.next);
+		this.next = labeling(jump);
+	}
+
+	@Override
+	protected String getOperand() {
+		return label(this.next);
+	}
+
+	@Override
+	void encodeA(ByteCoder c) {
+		c.encodeJumpAddr(this.next);
+	}
+
+	@Override
+	Instruction exec(RuntimeContext sc) throws TerminationException {
+		return this.next;
+	}
+}
+
 class ICall extends Instruction {
 	Production rule;
 	NonTerminal ne;
