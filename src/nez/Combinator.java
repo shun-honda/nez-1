@@ -8,6 +8,7 @@ import nez.ast.Symbol;
 import nez.lang.Expression;
 import nez.lang.expr.Cset;
 import nez.lang.expr.ExpressionCommons;
+import nez.lang.expr.NonTerminal;
 import nez.main.Verbose;
 import nez.util.UList;
 
@@ -268,6 +269,14 @@ public class Combinator extends Grammar {
 
 	protected final Expression Replace(String value) {
 		return ExpressionCommons.newTreplace(src(), value);
+	}
+
+	protected final Expression Symbol(String nonTerminal) {
+		return ExpressionCommons.newXsymbol(src(), (NonTerminal) P(nonTerminal));
+	}
+
+	protected Expression Match(String tableName) {
+		return ExpressionCommons.newXmatch(src(), Symbol.tag(tableName));
 	}
 
 }
