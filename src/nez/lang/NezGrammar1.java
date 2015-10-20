@@ -6,6 +6,10 @@ public class NezGrammar1 extends Combinator {
 
 	public NezGrammar1() {
 		super("nez", "File");
+		for(Production prod : this.prodList) {
+			System.out.println(prod.name);
+			System.out.println("  " + prod.getExpression());
+		}
 	}
 
 	public Expression pEOT() {
@@ -142,11 +146,15 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pTransParam() {
-		return New(Link(null, "Name"), ZeroMore(P("_"), t(","), P("_"), Link(null, "Name")), Tag("List"));
+		return New(Link(null, "ListArg"), ZeroMore(P("_"), t(","), P("_"), Link(null, "ListArg")), Tag("List"));
+	}
+
+	public Expression pListArg() {
+		return Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListArg"))));
 	}
 
 	public Expression pTransBlock() {
-		return New(Symbol("Indent"), Link(null, "TransExpr"), ZeroMore(Sequence(P("NEWLINE"), Match("Indent"), Link(null, "TransExpr"))), Tag("Block"));
+		return New(Block(Sequence(Symbol("Indent"), Link(null, "TransExpr"), ZeroMore(Sequence(P("NEWLINE"), Match("Indent"), Link(null, "TransExpr"))), Tag("Block"))));
 	}
 
 	public Expression pIndent() {

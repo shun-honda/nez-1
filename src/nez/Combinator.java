@@ -275,8 +275,12 @@ public class Combinator extends Grammar {
 		return ExpressionCommons.newXsymbol(src(), (NonTerminal) P(nonTerminal));
 	}
 
-	protected Expression Match(String tableName) {
+	protected final Expression Match(String tableName) {
 		return ExpressionCommons.newXmatch(src(), Symbol.tag(tableName));
+	}
+
+	protected final Expression Block(Expression e) {
+		return ExpressionCommons.newXblock(src(), e);
 	}
 
 }
