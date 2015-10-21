@@ -6,10 +6,6 @@ public class NezGrammar1 extends Combinator {
 
 	public NezGrammar1() {
 		super("nez", "File");
-		for(Production prod : this.prodList) {
-			System.out.println(prod.name);
-			System.out.println("  " + prod.getExpression());
-		}
 	}
 
 	public Expression pEOT() {
@@ -150,7 +146,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pListArg() {
-		return Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListArg"))));
+		return Choice(Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListArg")))), Sequence(t("["), P("_"), t("]")));
 	}
 
 	public Expression pTransBlock() {
