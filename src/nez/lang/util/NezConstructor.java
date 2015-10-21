@@ -434,6 +434,11 @@ public class NezConstructor extends GrammarFileLoader implements Constructor {
 		return path2;
 	}
 
+	/* AST Transformation */
+	public boolean parseMacro(Tree<?> node) {
+		return true;
+	}
+
 	@Override
 	public String parseGrammarDescription(SourceContext sc) {
 		StringBuilder sb = new StringBuilder();

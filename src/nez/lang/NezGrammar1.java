@@ -84,7 +84,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pChunk() {
-		return Sequence(P("_"), Choice(P("Import"), P("Example"), P("Format"), P("TransFuncDecl"), P("Production")), P("_"), Option(t(";"), P("_")));
+		return Sequence(P("_"), Choice(P("Import"), P("Example"), P("Format"), P("Macro"), P("Production")), P("_"), Option(t(";"), P("_")));
 	}
 
 	// import
@@ -137,6 +137,10 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	/* AST Transformation */
+	public Expression pMacro() {
+		return New(Choice(Link(null, "TransFuncDecl"), Link(null, "TransVarDecl")), Tag("Macro"));
+	}
+
 	public Expression pTransFuncDecl() {
 		return New(t("def"), P("_"), Choice(Sequence(t("#"), Tag("DesugarFuncDecl")), Tag("TransFuncDecl")), Link("name", "Name"), P("_"), t("("), P("_"), Link("param", "TransParam"), P("_"), t(")"), P("NEWLINE"), Link("body", "TransBlock"));
 	}
