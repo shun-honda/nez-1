@@ -15,6 +15,7 @@ import nez.lang.Expression;
 import nez.lang.Formatter;
 import nez.lang.GrammarFile;
 import nez.lang.GrammarFileLoader;
+import nez.lang.Macro;
 import nez.lang.NezGrammar1;
 import nez.lang.Production;
 import nez.lang.expr.ExpressionCommons;
@@ -435,7 +436,23 @@ public class NezConstructor extends GrammarFileLoader implements Constructor {
 	}
 
 	/* AST Transformation */
+	public final static Symbol _DesugarFuncDecl = Symbol.tag("DesugarFuncDecl");
+	public final static Symbol _TransFuncDecl = Symbol.tag("TransFuncDecl");
+	public final static Symbol _TransVarDecl = Symbol.tag("TransVarDecl");
+
 	public boolean parseMacro(Tree<?> node) {
+		node = node.get(0);
+		String name = node.getText(_name, null);
+		if (node.is(_DesugarFuncDecl)) {
+			this.getGrammarFile().addMacro(name, Macro.newDesugerFunction(node));
+		} else if (node.is(_TransFuncDecl)) {
+			this.getGrammarFile().addMacro(name, Macro.newTransFunction(node));
+		} else if (node.is(_TransVarDecl)) {
+			this.getGrammarFile().addMacro(name, Macro.newTransVariable(node));
+		} else {
+			System.out.println("Error: this macro is not found " + node);
+			return false;
+		}
 		return true;
 	}
 

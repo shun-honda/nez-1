@@ -129,4 +129,17 @@ public class GrammarFile extends Grammar {
 		}
 	}
 
+	private MacroManager macroManager;
+
+	public final MacroManager getMacroManager() {
+		return this.macroManager;
+	}
+
+	public final void addMacro(String name, Macro macro) {
+		if (this.macroManager == null) {
+			this.macroManager = new MacroManager();
+		}
+		this.macroManager.addMacro(name, macro);
+	}
+
 }

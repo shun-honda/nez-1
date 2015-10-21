@@ -9,6 +9,18 @@ public abstract class Macro {
 		this.macroNode = node;
 	}
 
+	public static final Macro newDesugerFunction(Tree<?> node) {
+		return new DesugarFunction(node);
+	}
+
+	public static final Macro newTransFunction(Tree<?> node) {
+		return new TransFunction(node);
+	}
+
+	public static final Macro newTransVariable(Tree<?> node) {
+		return new TransVariable(node);
+	}
+
 	@Override
 	public String toString() {
 		return this.macroNode.toString();
