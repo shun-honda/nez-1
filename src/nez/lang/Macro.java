@@ -21,6 +21,8 @@ public abstract class Macro {
 		return new TransVariable(node);
 	}
 
+	public abstract Tree<?> desugar(Tree<?> node);
+
 	@Override
 	public String toString() {
 		return this.macroNode.toString();
@@ -33,6 +35,12 @@ class DesugarFunction extends Macro {
 		super(node);
 	}
 
+	@Override
+	public Tree<?> desugar(Tree<?> node) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }
 
 class TransFunction extends Macro {
@@ -41,12 +49,24 @@ class TransFunction extends Macro {
 		super(node);
 	}
 
+	@Override
+	public Tree<?> desugar(Tree<?> node) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }
 
 class TransVariable extends Macro {
 
 	public TransVariable(Tree<?> node) {
 		super(node);
+	}
+
+	@Override
+	public Tree<?> desugar(Tree<?> node) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

@@ -129,15 +129,15 @@ public class GrammarFile extends Grammar {
 		}
 	}
 
-	private MacroManager macroManager;
+	private CommonMacroManager macroManager;
 
-	public final MacroManager getMacroManager() {
+	public final CommonMacroManager getMacroManager() {
 		return this.macroManager;
 	}
 
 	public final void addMacro(String name, Macro macro) {
 		if (this.macroManager == null) {
-			this.macroManager = new MacroManager();
+			this.macroManager = new CommonMacroManager();
 		}
 		this.macroManager.addMacro(name, macro);
 	}
