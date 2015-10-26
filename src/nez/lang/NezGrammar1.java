@@ -190,7 +190,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression ChildNodeExpr() {
-		return New(Option(Link("label", "NodeLabel"), P("_"), t(":")), P("_"), Choice(Link("expr", "TransExpr")), Tag("Element"));
+		return New(Option(Link("label", "NodeLabel"), P("_"), t("=")), P("_"), Choice(Link("expr", "TransExpr")), Tag("Element"));
 	}
 
 	public Expression pNodeLabel() {

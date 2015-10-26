@@ -182,6 +182,14 @@ public class CommonMacroManager extends MacroManager {
 		}
 	}
 
+	public class Indexer extends Undefined {
+		@Override
+		public Object accept(CommonTree node) {
+			CommonTree field = visit(node.get(_recv));
+			return field.get(Integer.parseInt(node.getText(_index, null)));
+		}
+	}
+
 	public class Name extends Undefined {
 		@Override
 		public Object accept(CommonTree node) {
