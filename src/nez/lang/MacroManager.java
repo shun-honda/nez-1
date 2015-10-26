@@ -29,6 +29,8 @@ public abstract class MacroManager extends TreeVisitor2<CommonMacroVisitor> {
 	public final static Symbol _EmptyList = Symbol.tag("EmptyList");
 	public final static Symbol _Field = Symbol.tag("Field");
 	public final static Symbol _String = Symbol.tag("String");
+	public final static Symbol _NodeValue = Symbol.tag("NodeValue");
+	public final static Symbol _ApplyVar = Symbol.tag("ApplyVar");
 
 	/* label */
 	public final static Symbol _name = Symbol.tag("name");

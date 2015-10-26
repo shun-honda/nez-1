@@ -170,7 +170,19 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression NodeLiteral() {
-		return New(t("#"), Link("name", "Name"), t("["), P("_"), Choice(Link("val", "String"), Link("val", "ChildNodeExprList")), P("_"), t("]"), Tag("NodeLiteral"));
+		return New(t("#"), Link("name", "Name"), t("["), P("_"), Choice(Link("val", "String"), Link("val", "NodeValue"),  Link("val", "ChildNodeExprList")), P("_"), t("]"), Tag("NodeLiteral"));
+	}
+
+	public Expression NodeValue() {
+		return New(t("`"), ZeroMore(Choice(Link(null, "ApplyVar"), Link(null, "NodeValueString"))), t("`"), Tag("NodeValue"));
+	}
+
+	public Expression ApplyVar() {
+		return New(t("${"), Link("name", P("Name")), t("}"), Tag("ApplyVar"));
+	}
+
+	public Expression NodeValueString() {
+		return New(ZeroMore(Choice(t("\\`"), t("\\\\"), Sequence(Not(Choice(t("`"), t("$"))), AnyChar()))), Tag("String"));
 	}
 
 	public Expression ChildNodeExprList() {

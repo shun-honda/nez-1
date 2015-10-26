@@ -14,10 +14,12 @@ public class CommonMacroManager extends MacroManager {
 	HashMap<String, TransFunction> transFunctionMap = new HashMap<String, TransFunction>();
 	List<TransFunction> transFunctionList = new ArrayList<TransFunction>();
 	MacroScope scope;
+	MacroScope topLevel;
 
 	public CommonMacroManager() {
 		super();
-		this.scope = new MacroScope();
+		this.topLevel = new MacroScope();
+		this.scope = this.topLevel;
 		init(new Undefined());
 	}
 
@@ -138,10 +140,15 @@ public class CommonMacroManager extends MacroManager {
 		@Override
 		public Object accept(CommonTree node) {
 			CommonTree valueNode = node.get(_val);
-			CommonTree desugarNode = new CommonTree(Symbol.tag(node.getText(_name, null)), null, 0, 0, valueNode.size(), null);
+			CommonTree desugarNode;
 			if (valueNode.is(_String)) {
+				desugarNode = new CommonTree(Symbol.tag(node.getText(_name, null)), null, 0, 0, 0, null);
 				desugarNode.setValue(valueNode.toText());
+			} else if (valueNode.is(_NodeValue)) {
+				desugarNode = new CommonTree(Symbol.tag(node.getText(_name, null)), null, 0, 0, 0, null);
+				setValue(valueNode, desugarNode);
 			} else {
+				desugarNode = new CommonTree(Symbol.tag(node.getText(_name, null)), null, 0, 0, valueNode.size(), null);
 				for (int i = 0; i < valueNode.size(); i++) {
 					setNode(valueNode.get(i), desugarNode, i);
 				}
@@ -152,6 +159,18 @@ public class CommonMacroManager extends MacroManager {
 		private void setNode(CommonTree macroNode, CommonTree desugarNode, int index) {
 			CommonTree dNode = visit(macroNode.get(_expr));
 			desugarNode.set(index, Symbol.tag(macroNode.get(_label).getText(_name, null)), dNode);
+		}
+
+		private void setValue(CommonTree macroNode, CommonTree desugarNode) {
+			String value = "";
+			for (CommonTree node : macroNode) {
+				if (node.is(_ApplyVar)) {
+					value += getTransVariable(node.getText(_name, null)).macroNode.toText();
+				} else if (node.is(_String)) {
+					value += node.toText();
+				}
+			}
+			desugarNode.setValue(value);
 		}
 	}
 
@@ -177,7 +196,8 @@ public class CommonMacroManager extends MacroManager {
 		public Object accept(CommonTree node) {
 			TransFunction func = getTransFunction(node.getText(_name, null), evalParams(node.get(_param)));
 			CommonTree retNode = null;
-			pushScope();
+			MacroScope prev = scope;
+			scope = new MacroScope(topLevel);
 			CommonTree params = node.get(_param);
 			for (int i = 0; i < func.params.size(); i++) {
 				value = params.get(i);
@@ -192,7 +212,7 @@ public class CommonMacroManager extends MacroManager {
 				}
 			}
 			retNode = visit((CommonTree) func.macroNode.get(_body));
-			popScope();
+			scope = prev;
 			return retNode;
 		}
 
