@@ -31,7 +31,10 @@ public class Cdesugar extends Command {
 				}
 				record(p.getProfiler(), node);
 				p.logProfiler();
-				makeOutputFile(config, input, node);
+				System.out.println("Parsed Tree: \n" + node + "\n");
+				((GrammarFile) g).desugarTree(node);
+				System.out.print("Desugared Tree: \n" + node + "\n");
+				// makeOutputFile(config, input, node);
 			}
 		}
 	}

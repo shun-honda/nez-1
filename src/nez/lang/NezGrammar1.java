@@ -51,7 +51,7 @@ public class NezGrammar1 extends Combinator {
 				t("grammar"), //
 				t("example"), //
 				t("format"), //
-				t("def"),//
+				t("define"),//
 				t("var")//
 				), Not(P("W")));
 	}
@@ -142,7 +142,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pTransFuncDecl() {
-		return New(t("def"), P("_"), Choice(Sequence(t("#"), Tag("DesugarFuncDecl")), Tag("TransFuncDecl")), Link("name", "Name"), P("_"), t("("), P("_"), Link("param", "TransParam"), P("_"), t(")"), P("NEWLINE"), Link("body", "TransBlock"));
+		return New(t("define"), P("_"), Choice(Sequence(t("#"), Tag("DesugarFuncDecl")), Tag("TransFuncDecl")), Link("name", "Name"), P("_"), t("("), P("_"), Link("param", "TransParam"), P("_"), t(")"), P("NEWLINE"), Link("body", "TransBlock"));
 	}
 
 	public Expression pTransParam() {
@@ -150,7 +150,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pListArg() {
-		return Choice(Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListArg")))), Sequence(t("["), P("_"), t("]")));
+		return Choice(Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListArg")))), Sequence(t("["), P("_"), t("]"), Tag("EmptyList")));
 	}
 
 	public Expression pTransBlock() {
@@ -170,7 +170,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression NodeLiteral() {
-		return New(t("#"), Link("name", "Name"), t("["), P("_"), Choice(Link("val", "ChildNodeExprList"), Link("val", "String")), P("_"), t("]"), Tag("NodeLiteral"));
+		return New(t("#"), Link("name", "Name"), t("["), P("_"), Choice(Link("val", "String"), Link("val", "ChildNodeExprList")), P("_"), t("]"), Tag("NodeLiteral"));
 	}
 
 	public Expression ChildNodeExprList() {
@@ -186,7 +186,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pTransApply() {
-		return Sequence(P("Field"), LeftFoldOption("name", Sequence(P("_"), t("("), P("_"), Link(null, "ApplyTransParam"), P("_"), t(")"), Tag("Apply"))));
+		return Sequence(P("Field"), LeftFoldOption("name", Sequence(P("_"), t("("), P("_"), Link("param", "ApplyTransParam"), P("_"), t(")"), Tag("Apply"))));
 	}
 
 	public Expression pApplyTransParam() {
