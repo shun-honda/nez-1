@@ -18,6 +18,7 @@ import nez.lang.NezGrammar1;
 import nez.lang.Production;
 import nez.lang.expr.ExpressionCommons;
 import nez.lang.expr.NonTerminal;
+import nez.lang.macro.NezMacro;
 import nez.util.ConsoleUtils;
 import nez.util.StringUtils;
 import nez.util.UList;
@@ -540,6 +541,30 @@ public class NezConstructor extends GrammarFileLoader {
 				reportError(node.get(1), "unfound: " + urn);
 			}
 			return false;
+		}
+	}
+
+	public final static Symbol _DesugarFuncDecl = Symbol.tag("DesugarFuncDecl");
+	public final static Symbol _TransFuncDecl = Symbol.tag("TransFuncDecl");
+	public final static Symbol _TransVarDecl = Symbol.tag("TransVarDecl");
+
+	public class Macro extends NezConstructorDefault {
+
+		@Override
+		public boolean parse(Tree<?> node) {
+			node = node.get(0);
+			String name = node.getText(_name, null);
+			if (node.is(_DesugarFuncDecl)) {
+				getGrammarFile().addMacro(name, NezMacro.newDesugerFunction(node));
+			} else if (node.is(_TransFuncDecl)) {
+				getGrammarFile().addMacro(name, NezMacro.newTransFunction(node));
+			} else if (node.is(_TransVarDecl)) {
+				getGrammarFile().addMacro(name, NezMacro.newTransVariable(node));
+			} else {
+				System.out.println("Error: this macro is not found " + node);
+				return false;
+			}
+			return true;
 		}
 	}
 

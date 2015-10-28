@@ -6,6 +6,9 @@ import nez.Grammar;
 import nez.Strategy;
 import nez.ast.CommonTree;
 import nez.ast.SourcePosition;
+import nez.ast.Tree;
+import nez.lang.macro.CommonMacroManager;
+import nez.lang.macro.NezMacro;
 import nez.util.UList;
 
 public class GrammarFile extends Grammar {
@@ -46,10 +49,12 @@ public class GrammarFile extends Grammar {
 		return this.urn;
 	}
 
+	@Override
 	public final void setDesc(String desc) {
 		this.desc = desc;
 	}
 
+	@Override
 	public final String getDesc() {
 		return this.desc;
 	}
@@ -127,6 +132,23 @@ public class GrammarFile extends Grammar {
 				}
 			}
 		}
+	}
+
+	private CommonMacroManager macroManager;
+
+	public final CommonMacroManager getMacroManager() {
+		return this.macroManager;
+	}
+
+	public final void addMacro(String name, NezMacro macro) {
+		if (this.macroManager == null) {
+			this.macroManager = new CommonMacroManager();
+		}
+		this.macroManager.addMacro(name, macro);
+	}
+
+	public final Object desugarTree(Tree<?> node) {
+		return this.macroManager.desugar(node);
 	}
 
 }
