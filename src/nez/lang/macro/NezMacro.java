@@ -25,7 +25,7 @@ public abstract class NezMacro {
 		return new TransVariable(node);
 	}
 
-	public abstract Tree<?> desugar(MacroManager manager);
+	public abstract Tree<?> desugar(AbstractMacroManager manager);
 
 	@Override
 	public String toString() {
@@ -40,7 +40,7 @@ class DesugarFunction extends NezMacro {
 	}
 
 	@Override
-	public Tree<?> desugar(MacroManager manager) {
+	public Tree<?> desugar(AbstractMacroManager manager) {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -69,7 +69,7 @@ class TransFunction extends NezMacro {
 	}
 
 	@Override
-	public Tree<?> desugar(MacroManager manager) {
+	public Tree<?> desugar(AbstractMacroManager manager) {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -125,7 +125,7 @@ class TransVariable extends NezMacro {
 	}
 
 	@Override
-	public Tree<?> desugar(MacroManager manager) {
+	public Tree<?> desugar(AbstractMacroManager manager) {
 		// TODO Auto-generated method stub
 		return null;
 	}
