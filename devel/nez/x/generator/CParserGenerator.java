@@ -1,5 +1,7 @@
 package nez.x.generator;
 
+import java.io.UnsupportedEncodingException;
+
 import nez.lang.Expression;
 import nez.lang.Production;
 import nez.lang.expr.Cany;
@@ -33,6 +35,7 @@ import nez.lang.expr.Xon;
 import nez.lang.expr.Xsymbol;
 import nez.parser.GenerativeGrammar;
 import nez.parser.ParserGenerator;
+import nez.util.StringUtils;
 
 public class CParserGenerator extends ParserGenerator {
 
@@ -86,6 +89,9 @@ public class CParserGenerator extends ParserGenerator {
 		L(type + " " + name + "(");
 		for (int i = 0; i < args.length; i++) {
 			W(args[i]);
+			if (i < args.length - 1) {
+				W(", ");
+			}
 		}
 		W(")");
 		return this;
@@ -95,13 +101,34 @@ public class CParserGenerator extends ParserGenerator {
 		L(name + "(");
 		for (int i = 0; i < args.length; i++) {
 			W(args[i]);
+			if (i < args.length - 1) {
+				W(", ");
+			}
 		}
 		W(")");
 		return this;
 	}
 
+	private final String _FuncCall(String name, String... args) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(name).append("(");
+		for (int i = 0; i < args.length; i++) {
+			sb.append(args[i]);
+			if (i < args.length - 1) {
+				sb.append(", ");
+			}
+		}
+		sb.append(")");
+		return sb.toString();
+	}
+
 	private final CParserGenerator Let(String type, String name, String expr) {
-		L(type + " " + name + " " + expr + ";");
+		L(type + " " + name + " = " + expr + ";");
+		return this;
+	}
+
+	private final CParserGenerator Let(String name, String expr) {
+		L(name + " = " + expr + ";");
 		return this;
 	}
 
@@ -115,11 +142,24 @@ public class CParserGenerator extends ParserGenerator {
 	}
 
 	private final String _NotEquals(String left, String right) {
-		return left + " == " + right;
+		return left + " != " + right;
+	}
+
+	private final String _Not(String expr) {
+		return "!(" + expr + ")";
+	}
+
+	private final String _Mul(String left, String right) {
+		return left + " * " + right;
 	}
 
 	private final CParserGenerator Consume() {
-		L("ctx->pos++;");
+		L("*ctx->cur++;");
+		return this;
+	}
+
+	private final CParserGenerator Consume(String len) {
+		L("ctx->cur += " + len + ";");
 		return this;
 	}
 
@@ -135,6 +175,8 @@ public class CParserGenerator extends ParserGenerator {
 				Prototype("int", "p" + name(r.getLocalName()), "ParsingContext ctx");
 			}
 		}
+		Prototype("void", "init_set", "ParsingContext ctx");
+		Prototype("void", "init_str", "ParsingContext ctx");
 		L();
 	}
 
@@ -149,13 +191,25 @@ public class CParserGenerator extends ParserGenerator {
 		// L("#define CNEZ_GRAMMAR_URN \"" + urn + "\"");
 		// L("#define CNEZ_PRODUCTION_SIZE " + prodSize);
 		Define("CNEZ_PRODUCTION_SIZE " + prodSize);
+		Define("CNEZ_SET_SIZE " + manager.setId);
+		Define("CNEZ_STR_SIZE " + manager.strId);
 		if (this.enabledASTConstruction) {
 			// L("#define CNEZ_ENABLE_AST_CONSTRUCTION 1");
 			Define("CNEZ_ENABLE_AST_CONSTRUCTION 1");
 		}
 		// L("#include \"cnez_main.c\"");
 		Include("cnez_main.c");
+		Func("void", "init_set", "ParsingContext ctx").Begin();
+		Let("ctx->sets", _FuncCall("malloc", _Mul(_FuncCall("sizeof", "bitset_t"), "CNEZ_SET_SIZE"))).N();
+		W(manager.setBuilder.toString());
+		End();
+		Func("void", "init_str", "ParsingContext ctx").Begin();
+		Let("ctx->strs", _FuncCall("malloc", _Mul(_FuncCall("sizeof", "const char *"), "CNEZ_STR_SIZE"))).N();
+		W(manager.strBuilder.toString());
+		End();
 	}
+
+	/* Failure handling */
 
 	int fid = 0;
 
@@ -212,6 +266,30 @@ public class CParserGenerator extends ParserGenerator {
 		W(label + ": ;");
 		return this;
 	}
+
+	/* Id Manager */
+	class IdManager {
+		int setId = 0;
+		int strId = 0;
+		StringBuilder setBuilder;
+		StringBuilder strBuilder;
+
+		public IdManager() {
+			setBuilder = new StringBuilder();
+			strBuilder = new StringBuilder();
+		}
+
+		public void addSet(String init) {
+			setBuilder.append(init).append("\n");
+			setBuilder.append("   bitset_create_impl(ctx, " + this.setId + ", init_set" + this.setId++ + ");\n");
+		}
+
+		public void addStr(String init) {
+			strBuilder.append("   str_create_impl(ctx, " + this.strId++ + ", \"" + init + "\");\n");
+		}
+	}
+
+	IdManager manager = new IdManager();
 
 	@Override
 	public void visitProduction(GenerativeGrammar gg, Production p) {
@@ -271,14 +349,52 @@ public class CParserGenerator extends ParserGenerator {
 
 	@Override
 	public void visitCset(Cset p) {
-		// TODO Auto-generated method stub
-
+		/*
+		 * bitset_t *set = BITSET_GET_IMPL(runtime, setId); if (!bitset_get(set,
+		 * *GET_CURRENT())) { FAIL(); } CONSUME();
+		 */
+		Let("bitset_t*", "set" + manager.setId, "&ctx->sets[" + manager.setId + "]");
+		If(_Not(_FuncCall("bitset_get", "set" + manager.setId, "*ctx->cur"))).Begin();
+		jumpFailureJump();
+		End();
+		Consume();
+		String initializeExpr = "   int init_set" + manager.setId + "[] = { ";
+		boolean b[] = p.byteMap;
+		for (int i = 0; i < 256; i++) {
+			if (b[i]) {
+				initializeExpr += 1;
+			} else {
+				initializeExpr += 0;
+			}
+			if (i < 255) {
+				initializeExpr += ", ";
+			} else {
+				initializeExpr += " };";
+			}
+		}
+		manager.addSet(initializeExpr);
 	}
 
 	@Override
 	public void visitCmulti(Cmulti p) {
-		// TODO Auto-generated method stub
-
+		/*
+		 * const char *str = STRING_GET_IMPL(runtime, strId); unsigned len =
+		 * pstring_length(str); if (pstring_starts_with(GET_CURRENT(), str, len)
+		 * == 0) { FAIL(); } CONSUME_N(len);
+		 */
+		String strName = "str" + manager.strId;
+		String lenName = "len" + manager.strId;
+		Let("const char*", strName, "ctx->strs[" + manager.strId + "]");
+		Let("unsigned", lenName, _FuncCall("pstring_length", strName));
+		If(_Equals(_FuncCall("pstring_starts_with", "ctx->cur", strName, lenName), "0")).Begin();
+		jumpFailureJump();
+		End();
+		Consume(lenName);
+		try {
+			manager.addStr(new String(p.byteSeq, StringUtils.DefaultEncoding));
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
