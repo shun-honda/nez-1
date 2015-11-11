@@ -1,7 +1,11 @@
 package nez.x.generator;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
 
+import nez.ast.Symbol;
 import nez.lang.Expression;
 import nez.lang.Production;
 import nez.lang.expr.Cany;
@@ -105,7 +109,7 @@ public class CParserGenerator extends ParserGenerator {
 				W(", ");
 			}
 		}
-		W(")");
+		W(");");
 		return this;
 	}
 
@@ -132,8 +136,13 @@ public class CParserGenerator extends ParserGenerator {
 		return this;
 	}
 
-	private final CParserGenerator If(String expr) {
-		L("if(" + expr + ")");
+	private final CParserGenerator If(String cond) {
+		L("if(" + cond + ")");
+		return this;
+	}
+
+	private final CParserGenerator While(String cond) {
+		L("while(" + cond + ")");
 		return this;
 	}
 
@@ -198,6 +207,15 @@ public class CParserGenerator extends ParserGenerator {
 			Define("CNEZ_ENABLE_AST_CONSTRUCTION 1");
 		}
 		// L("#include \"cnez_main.c\"");
+		L("const char* global_tag_list[] = {");
+		for (int i = 0; i < tagList.size(); i++) {
+			W("\"" + tagList.get(i).getSymbol() + "\"");
+			if (i < tagList.size() - 1) {
+				W(", ");
+			} else {
+				W("};");
+			}
+		}
 		Include("cnez_main.c");
 		Func("void", "init_set", "ParsingContext ctx").Begin();
 		Let("ctx->sets", _FuncCall("malloc", _Mul(_FuncCall("sizeof", "bitset_t"), "CNEZ_SET_SIZE"))).N();
@@ -268,13 +286,14 @@ public class CParserGenerator extends ParserGenerator {
 	}
 
 	/* Id Manager */
-	class IdManager {
+	class PoolManager {
 		int setId = 0;
 		int strId = 0;
+		int jumpId = 0;
 		StringBuilder setBuilder;
 		StringBuilder strBuilder;
 
-		public IdManager() {
+		public PoolManager() {
 			setBuilder = new StringBuilder();
 			strBuilder = new StringBuilder();
 		}
@@ -287,9 +306,13 @@ public class CParserGenerator extends ParserGenerator {
 		public void addStr(String init) {
 			strBuilder.append("   str_create_impl(ctx, " + this.strId++ + ", \"" + init + "\");\n");
 		}
+
+		public void addJumpTable(String init) {
+
+		}
 	}
 
-	IdManager manager = new IdManager();
+	PoolManager manager = new PoolManager();
 
 	@Override
 	public void visitProduction(GenerativeGrammar gg, Production p) {
@@ -349,10 +372,6 @@ public class CParserGenerator extends ParserGenerator {
 
 	@Override
 	public void visitCset(Cset p) {
-		/*
-		 * bitset_t *set = BITSET_GET_IMPL(runtime, setId); if (!bitset_get(set,
-		 * *GET_CURRENT())) { FAIL(); } CONSUME();
-		 */
 		Let("bitset_t*", "set" + manager.setId, "&ctx->sets[" + manager.setId + "]");
 		If(_Not(_FuncCall("bitset_get", "set" + manager.setId, "*ctx->cur"))).Begin();
 		jumpFailureJump();
@@ -377,11 +396,6 @@ public class CParserGenerator extends ParserGenerator {
 
 	@Override
 	public void visitCmulti(Cmulti p) {
-		/*
-		 * const char *str = STRING_GET_IMPL(runtime, strId); unsigned len =
-		 * pstring_length(str); if (pstring_starts_with(GET_CURRENT(), str, len)
-		 * == 0) { FAIL(); } CONSUME_N(len);
-		 */
 		String strName = "str" + manager.strId;
 		String lenName = "len" + manager.strId;
 		Let("const char*", strName, "ctx->strs[" + manager.strId + "]");
@@ -399,86 +413,190 @@ public class CParserGenerator extends ParserGenerator {
 
 	@Override
 	public void visitPoption(Poption p) {
-		// TODO Auto-generated method stub
-
+		pushFailureJumpPoint();
+		String label = "EXIT_OPTION" + fid;
+		String backtrack = "c" + fid;
+		Let("char *", backtrack, "ctx->cur");
+		visitExpression(p.get(0));
+		gotoLabel(label);
+		popFailureJumpPoint(p);
+		Let("ctx->cur", backtrack);
+		Label(label);
 	}
 
 	@Override
 	public void visitPzero(Pzero p) {
-		// TODO Auto-generated method stub
-
+		pushFailureJumpPoint();
+		String backtrack = "c" + fid;
+		Let("char *", backtrack, "ctx->cur");
+		While("1").Begin();
+		visitExpression(p.get(0));
+		Let(backtrack, "ctx->cur");
+		End();
+		popFailureJumpPoint(p);
+		Let("ctx->cur", backtrack);
 	}
 
 	@Override
 	public void visitPone(Pone p) {
-		// TODO Auto-generated method stub
-
+		visitExpression(p.get(0));
+		pushFailureJumpPoint();
+		String backtrack = "c" + fid;
+		Let("char *", backtrack, "ctx->cur");
+		While("1").Begin();
+		visitExpression(p.get(0));
+		Let(backtrack, "ctx->cur");
+		End();
+		popFailureJumpPoint(p);
+		Let("ctx->cur", backtrack);
 	}
 
 	@Override
 	public void visitPand(Pand p) {
-		// TODO Auto-generated method stub
-
+		pushFailureJumpPoint();
+		String label = "EXIT_AND" + this.fid;
+		String backtrack = "c" + this.fid;
+		Let("char *", backtrack, "ctx->cur");
+		visitExpression(p.get(0));
+		Let("ctx->cur", backtrack);
+		gotoLabel(label);
+		popFailureJumpPoint(p);
+		Let("ctx->cur", backtrack);
+		jumpFailureJump();
+		Label(label);
 	}
 
 	@Override
 	public void visitPnot(Pnot p) {
-		// TODO Auto-generated method stub
-
+		pushFailureJumpPoint();
+		String backtrack = "c" + this.fid;
+		Let("char *", backtrack, "ctx->cur");
+		visitExpression(p.get(0));
+		Let("ctx->cur", backtrack);
+		jumpPrevFailureJump();
+		popFailureJumpPoint(p);
+		Let("ctx->cur", backtrack);
 	}
 
 	@Override
 	public void visitPsequence(Psequence p) {
-		// TODO Auto-generated method stub
-
+		for (int i = 0; i < p.size(); i++) {
+			visitExpression(p.get(i));
+		}
 	}
 
 	@Override
 	public void visitPchoice(Pchoice p) {
-		// TODO Auto-generated method stub
-
+		if (p.predictedCase != null) {
+			// TODO
+		} else {
+			fid++;
+			String label = "EXIT_CHOICE" + this.fid;
+			String backtrack = "c" + this.fid;
+			Let("char *", backtrack, "ctx->cur");
+			for (int i = 0; i < p.size(); i++) {
+				pushFailureJumpPoint();
+				visitExpression(p.get(i));
+				gotoLabel(label);
+				popFailureJumpPoint(p.get(i));
+				Let("ctx->cur", backtrack);
+			}
+			jumpFailureJump();
+			Label(label);
+		}
 	}
 
 	@Override
 	public void visitNonTerminal(NonTerminal p) {
-		// TODO Auto-generated method stub
-
+		String name = "p" + name(p.getLocalName());
+		If(_FuncCall(name, "ctx")).Begin();
+		jumpFailureJump();
+		End();
 	}
 
 	@Override
 	public void visitTlink(Tlink p) {
-		// TODO Auto-generated method stub
+		pushFailureJumpPoint();
+		String mark = "mark" + this.fid++;
 
+		if (this.enabledASTConstruction) {
+			Let("int", mark, _FuncCall("ast_save_tx", "ctx->ast"));
+		}
+		visitExpression(p.get(0));
+		if (this.enabledASTConstruction) {
+			String po = "ctx->left";
+			String label = "EXIT_LINK" + this.fid;
+			Symbol sym = p.getLabel();
+			if (sym == null) {
+				sym = Symbol.NullSymbol;
+			}
+			// String tag = sym.getSymbol();
+			// L("ast_commit_tx(ctx->ast, \"" + tag + "\", " + mark + ");");
+			FuncCall("ast_commit_tx", "ctx->ast", String.valueOf(sym.id()), mark);
+			Let(po, "ast_get_last_linked_node(ctx->ast)");
+			gotoLabel(label);
+			popFailureJumpPoint(p);
+			// L("ast_rollback_tx(ctx->ast, " + mark + ");");
+			FuncCall("ast_rollback_tx", "ctx->ast", mark);
+			jumpFailureJump();
+			Label(label);
+		}
 	}
+
+	Stack<String> markStack = new Stack<String>();
 
 	@Override
 	public void visitTnew(Tnew p) {
-		// TODO Auto-generated method stub
-
+		if (this.enabledASTConstruction) {
+			markStack.push(null);
+			String mark = "mark" + this.fid++;
+			Let("int", mark, _FuncCall("ast_save_tx", "ctx->ast"));
+			FuncCall("ast_log_new", "ctx->ast", "ctx->cur + " + p.shift);
+		}
 	}
 
 	@Override
 	public void visitTlfold(Tlfold p) {
-		// TODO Auto-generated method stub
-
+		if (this.enabledASTConstruction) {
+			String mark = "mark" + this.fid++;
+			markStack.push(mark);
+			pushFailureJumpPoint();
+			Let("int", mark, _FuncCall("ast_save_tx", "ctx->ast"));
+			FuncCall("ast_log_swap", "ctx->ast", "ctx->cur + " + p.shift, String.valueOf(p.getLabel().id()));
+		}
 	}
 
 	@Override
 	public void visitTcapture(Tcapture p) {
-		// TODO Auto-generated method stub
-
+		if (this.enabledASTConstruction) {
+			String mark = markStack.pop();
+			if (mark != null) {
+				String label = "EXIT_LFOLD" + this.fid;
+				gotoLabel(label);
+				popFailureJumpPoint(p);
+				FuncCall("ast_rollback_tx", "ctx->ast", mark);
+				jumpFailureJump();
+				Label(label);
+			}
+			FuncCall("ast_log_capture", "ctx->ast", "ctx->cur");
+		}
 	}
+
+	List<Symbol> tagList = new ArrayList<Symbol>();
 
 	@Override
 	public void visitTtag(Ttag p) {
-		// TODO Auto-generated method stub
-
+		if (this.enabledASTConstruction) {
+			tagList.add(p.tag);
+			FuncCall("ast_log_tag", "ctx->ast", "\"" + p.tag.getSymbol() + "\"");
+		}
 	}
 
 	@Override
 	public void visitTreplace(Treplace p) {
-		// TODO Auto-generated method stub
-
+		if (this.enabledASTConstruction) {
+			FuncCall("ast_log_replace", "ctx->ast", "\"" + p.value + "\"");
+		}
 	}
 
 	@Override
