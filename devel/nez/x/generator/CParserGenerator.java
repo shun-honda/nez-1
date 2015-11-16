@@ -4,7 +4,6 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Stack;
 
 import nez.Strategy;
 import nez.Verbose;
@@ -276,7 +275,11 @@ public class CParserGenerator extends ParserGenerator {
 		// L("#define CNEZ_FLAG_TABLE_SIZE " + flagTableSize);
 		Define("CNEZ_FLAG_TABLE_SIZE " + flagTableSize);
 		// L("#define CNEZ_MEMO_SIZE " + 0 /* this.memoId */);
-		Define("CNEZ_MEMO_SIZE       " + gg.memoPointList.size());
+		if (gg.memoPointList != null) {
+			Define("CNEZ_MEMO_SIZE       " + gg.memoPointList.size());
+		} else {
+			Define("CNEZ_MEMO_SIZE       0");
+		}
 		// L("#define CNEZ_GRAMMAR_URN \"" + urn + "\"");
 		// L("#define CNEZ_PRODUCTION_SIZE " + prodSize);
 		Define("CNEZ_PRODUCTION_SIZE " + prodSize);
@@ -394,31 +397,18 @@ public class CParserGenerator extends ParserGenerator {
 	public void visitProduction(GenerativeGrammar gg, Production p) {
 		currentProduction = p;
 		initFalureJumpPoint();
-		// L("int p" + name(p.getLocalName()) + "(ParsingContext ctx)");
 		Func("int", "p" + name(p.getLocalName()), "ParsingContext ctx");
 		Begin();
 		pushFailureJumpPoint();
-		// if (this.enabledPackratParsing) {
-		// lookup(p, this.memoId);
-		// }
 		String pos = "c" + this.fid;
 		Let("char *", pos, "ctx->cur");
 		Expression e = p.getExpression();
 		visitExpression(e);
-		// if (this.enabledPackratParsing) {
-		// memoize(p, this.memoId, pos);
-		// }
 		L("return 0;");
 		popFailureJumpPoint(p);
-		// if (this.enabledPackratParsing) {
-		// memoizeFail(p, this.memoId, pos);
-		// }
 		L("return 1;");
 		End();
 		L();
-		// if (this.enabledPackratParsing) {
-		// this.memoId++;
-		// }
 	}
 
 	@Override
@@ -440,7 +430,7 @@ public class CParserGenerator extends ParserGenerator {
 
 	@Override
 	public void visitCbyte(Cbyte p) {
-		If(_NotEquals("*ctx->cur", String.valueOf(p.byteChar)));
+		If(_NotEquals("(uint8_t)*ctx->cur", String.valueOf(p.byteChar)));
 		Begin();
 		this.jumpFailureJump();
 		End();
@@ -467,7 +457,7 @@ public class CParserGenerator extends ParserGenerator {
 	@Override
 	public void visitCset(Cset p) {
 		Let("bitset_t*", "set" + manager.setId, "&ctx->sets[" + manager.setId + "]");
-		If(_Not(_FuncCall("bitset_get", "set" + manager.setId, "*ctx->cur"))).Begin();
+		If(_Not(_FuncCall("bitset_get", "set" + manager.setId, "(uint8_t)*ctx->cur"))).Begin();
 		jumpFailureJump();
 		End();
 		Consume();
@@ -499,14 +489,14 @@ public class CParserGenerator extends ParserGenerator {
 		if (strategy.isEnabled("Olex", Strategy.Olex)) {
 			Expression inner = p.get(0);
 			if (inner instanceof Cbyte) {
-				If(_Equals("*ctx->cur", String.valueOf(((Cbyte) inner).byteChar))).Begin();
+				If(_Equals("(uint8_t)*ctx->cur", String.valueOf(((Cbyte) inner).byteChar))).Begin();
 				Consume();
 				End();
 				return true;
 			}
 			if (inner instanceof Cset) {
 				Let("bitset_t*", "set" + manager.setId, "&ctx->sets[" + manager.setId + "]");
-				If(_FuncCall("bitset_get", "set" + manager.setId, "*ctx->cur")).Begin();
+				If(_FuncCall("bitset_get", "set" + manager.setId, "(uint8_t)*ctx->cur")).Begin();
 				Consume();
 				End();
 				initSet(((Cset) inner).byteMap);
@@ -547,7 +537,7 @@ public class CParserGenerator extends ParserGenerator {
 			Expression inner = p.get(0);
 			if (inner instanceof Cbyte) {
 				While("1").Begin();
-				If(_NotEquals("*ctx->cur", String.valueOf(((Cbyte) inner).byteChar))).Begin();
+				If(_NotEquals("(uint8_t)*ctx->cur", String.valueOf(((Cbyte) inner).byteChar))).Begin();
 				Break();
 				End();
 				Consume();
@@ -557,7 +547,7 @@ public class CParserGenerator extends ParserGenerator {
 			if (inner instanceof Cset) {
 				Let("bitset_t*", "set" + manager.setId, "&ctx->sets[" + manager.setId + "]");
 				While("1").Begin();
-				If(_Not(_FuncCall("bitset_get", "set" + manager.setId, "*ctx->cur"))).Begin();
+				If(_Not(_FuncCall("bitset_get", "set" + manager.setId, "(uint8_t)*ctx->cur"))).Begin();
 				Break();
 				End();
 				Consume();
@@ -623,14 +613,14 @@ public class CParserGenerator extends ParserGenerator {
 		if (strategy.isEnabled("Olex", Strategy.Olex)) {
 			Expression inner = p.get(0);
 			if (inner instanceof Cbyte) {
-				If(_Equals("*ctx->cur", String.valueOf(((Cbyte) inner).byteChar))).Begin();
+				If(_Equals("(uint8_t)*ctx->cur", String.valueOf(((Cbyte) inner).byteChar))).Begin();
 				jumpFailureJump();
 				End();
 				return true;
 			}
 			if (inner instanceof Cset) {
 				Let("bitset_t*", "set" + manager.setId, "&ctx->sets[" + manager.setId + "]");
-				If(_FuncCall("bitset_get", "set" + manager.setId, "*ctx->cur")).Begin();
+				If(_FuncCall("bitset_get", "set" + manager.setId, "(uint8_t)*ctx->cur")).Begin();
 				jumpFailureJump();
 				End();
 				initSet(((Cset) inner).byteMap);
@@ -653,7 +643,7 @@ public class CParserGenerator extends ParserGenerator {
 
 	@Override
 	public void visitPnot(Pnot p) {
-		if (specializeNot(p)) {
+		if (!specializeNot(p)) {
 			pushFailureJumpPoint();
 			String backtrack = "c" + this.fid;
 			Let("char *", backtrack, "ctx->cur");
@@ -701,7 +691,9 @@ public class CParserGenerator extends ParserGenerator {
 			for (int i = 0; i < l.size(); i++) {
 				Expression pe = l.get(i);
 				Label("PREDICATE_JUMP" + fid + "" + unique(pe));
+				MarkStack cur = markStack;
 				visitExpression(pe);
+				markStack = cur;
 				gotoLabel(label);
 			}
 			Label("PREDICATE_JUMP" + fid + "" + 0);
@@ -714,7 +706,9 @@ public class CParserGenerator extends ParserGenerator {
 			Let("char *", backtrack, "ctx->cur");
 			for (int i = 0; i < p.size(); i++) {
 				pushFailureJumpPoint();
+				MarkStack cur = markStack;
 				visitExpression(p.get(i));
+				markStack = cur;
 				gotoLabel(label);
 				popFailureJumpPoint(p.get(i));
 				Let("ctx->cur", backtrack);
@@ -741,7 +735,7 @@ public class CParserGenerator extends ParserGenerator {
 				if (Verbose.PackratParsing) {
 					Verbose.println("memoize: " + n.getLocalName() + " at " + currentProduction.getLocalName());
 				}
-				String label = "EXIT_CALL" + this.fid;
+				String label = "EXIT_CALL" + this.fid++;
 				String pos = "pos" + this.fid;
 				Lookup(memo, n, label);
 				Let("char *", pos, "ctx->cur");
@@ -777,7 +771,7 @@ public class CParserGenerator extends ParserGenerator {
 	}
 
 	private boolean memoizeLink(Tlink p) {
-		if (enabledPackratParsing && enabledASTConstruction && p.get(0) instanceof NonTerminal) {
+		if (enabledASTConstruction && p.get(0) instanceof NonTerminal) {
 			NonTerminal n = (NonTerminal) p.get(0);
 			ParseFunc f = this.getParseFunc(n.getProduction());
 			MemoPoint memo = f.getMemoPoint();
@@ -820,14 +814,15 @@ public class CParserGenerator extends ParserGenerator {
 	public void visitTlink(Tlink p) {
 		if (!memoizeLink(p)) {
 			pushFailureJumpPoint();
-			String mark = "mark" + this.fid++;
+			int fid = this.fid++;
+			String mark = "mark" + fid;
 			if (this.enabledASTConstruction) {
 				Let("int", mark, _FuncCall("ast_save_tx", "ctx->ast"));
 			}
 			visitExpression(p.get(0));
 			if (this.enabledASTConstruction) {
 				String po = "ctx->left";
-				String label = "EXIT_LINK" + this.fid;
+				String label = "EXIT_LINK" + fid;
 				Symbol sym = p.getLabel();
 				if (sym == null) {
 					sym = Symbol.NullSymbol;
@@ -843,12 +838,34 @@ public class CParserGenerator extends ParserGenerator {
 		}
 	}
 
-	Stack<String> markStack = new Stack<String>();
+	/* mark stack */
+
+	class MarkStack {
+		String mark;
+		MarkStack prev;
+
+		public MarkStack(String mark, MarkStack prev) {
+			this.mark = mark;
+			this.prev = prev;
+		}
+	}
+
+	MarkStack markStack;
+
+	public void pushMark(String mark) {
+		markStack = new MarkStack(mark, markStack);
+	}
+
+	public MarkStack popMark() {
+		MarkStack cur = markStack;
+		markStack = markStack.prev;
+		return cur;
+	}
 
 	@Override
 	public void visitTnew(Tnew p) {
 		if (this.enabledASTConstruction) {
-			markStack.push(null);
+			pushMark(null);
 			String mark = "mark" + this.fid++;
 			Let("int", mark, _FuncCall("ast_save_tx", "ctx->ast"));
 			FuncCall("ast_log_new", "ctx->ast", "ctx->cur + " + p.shift);
@@ -859,7 +876,7 @@ public class CParserGenerator extends ParserGenerator {
 	public void visitTlfold(Tlfold p) {
 		if (this.enabledASTConstruction) {
 			String mark = "mark" + this.fid++;
-			markStack.push(mark);
+			pushMark(mark);
 			pushFailureJumpPoint();
 			Let("int", mark, _FuncCall("ast_save_tx", "ctx->ast"));
 			FuncCall("ast_log_swap", "ctx->ast", "ctx->cur + " + p.shift, String.valueOf(p.getLabel().id()));
@@ -870,7 +887,7 @@ public class CParserGenerator extends ParserGenerator {
 	public void visitTcapture(Tcapture p) {
 		if (this.enabledASTConstruction) {
 			createAST = true;
-			String mark = markStack.pop();
+			String mark = popMark().mark;
 			if (mark != null) {
 				String label = "EXIT_LFOLD" + this.fid;
 				gotoLabel(label);
