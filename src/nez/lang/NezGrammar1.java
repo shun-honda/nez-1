@@ -47,7 +47,8 @@ public class NezGrammar1 extends Combinator {
 				t("grammar"), //
 				t("example"), //
 				t("format"), //
-				t("define")//
+				t("define"),//
+				t("desugar")//
 				), Not(P("W")));
 	}
 
@@ -79,7 +80,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pChunk() {
-		return Sequence(P("_"), Choice(P("Import"), P("Example"), P("Format"), P("Production")), P("_"), Option(t(";"), P("_")));
+		return Sequence(P("_"), Choice(P("Import"), P("Example"), P("Format"), P("Macro"), P("Production")), P("_"), Option(t(";"), P("_")));
 	}
 
 	// import
@@ -129,6 +130,67 @@ public class NezGrammar1 extends Combinator {
 
 	public Expression pFormatSize() {
 		return New(Choice(t('*'), P("INT")), Tag("Integer"));
+	}
+
+	/* AST Transformation */
+	public Expression pMacro() {
+		return New(Choice(Link(null, "TransFuncDecl"), Link(null, "TransVarDecl")), Tag("Macro"));
+	}
+
+	public Expression pTransFuncDecl() {
+		return New(t("desugar"), P("_"), Choice(Sequence(t("#"), Tag("DesugarFuncDecl")), Tag("TransFuncDecl")), Link("name", "Name"), P("_"), t("("), P("_"), Link("param", "TransParam"), P("_"), t(")"), P("_"), t("->"), P("_"), Link("body", "TransBlock"));
+	}
+
+	public Expression pTransParam() {
+		return New(Link(null, "ListArg"), ZeroMore(P("_"), t(","), P("_"), Link(null, "ListArg")), Tag("List"));
+	}
+
+	public Expression pListArg() {
+		return Choice(Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListArg")))), Sequence(t("["), P("_"), t("]"), Tag("EmptyList")));
+	}
+
+	public Expression pTransBlock() {
+		return New(Sequence(Link(null, "TransExpr"), ZeroMore(Sequence(P("NEWLINE"), Link(null, "TransExpr"))), Tag("Block")));
+	}
+
+	public Expression pNEWLINE() {
+		return t("\n");
+	}
+
+	public Expression TransExpr() {
+		return Choice(P("NodeLiteral"), P("TransVarDecl"), P("TransApply"), P("String"));
+	}
+
+	public Expression NodeLiteral() {
+		return New(t("#"), Link("name", "Name"), t("["), P("_"), Choice(Link("val", "String"), Link("val", "ChildNodeExprList")), P("_"), t("]"), Tag("NodeLiteral"));
+	}
+
+	public Expression ChildNodeExprList() {
+		return New(Link(null, "ChildNodeExpr"), ZeroMore(P("_"), t(","), P("_"), Choice(Link(null, "ChildNodeExpr"))), Tag("List"));
+	}
+
+	public Expression ChildNodeExpr() {
+		return New(Option(Link("label", "NodeLabel"), P("_"), t("=")), P("_"), Choice(Link("expr", "TransExpr")), Tag("Element"));
+	}
+
+	public Expression pNodeLabel() {
+		return New(t("$"), Link("name", "Name"), Tag("Label"));
+	}
+
+	public Expression pTransApply() {
+		return Sequence(P("Field"), LeftFoldOption("name", Sequence(P("_"), t("("), P("_"), Link("param", "ApplyTransParam"), P("_"), t(")"), Tag("Apply"))));
+	}
+
+	public Expression pApplyTransParam() {
+		return New(Option(Link(null, P("Field")), ZeroMore(P("_"), t(","), P("_"), Link(null, "Field"))), Tag("List"));
+	}
+
+	public Expression pField() {
+		return Sequence(P("Name"), LeftFoldZeroMore("recv", Choice(Sequence(t("."), Link("name", "Name"), Tag("Field")), Sequence(t("["), P("_"), Link("index", "Index"), P("_"), t("]"), Tag("Indexer")))));
+	}
+
+	public Expression pTransVarDecl() {
+		return New(t("define"), P("_"), Link("name", "Name"), P("_"), Link("expr", "NodeLiteral"), Tag("TransVarDecl"));
 	}
 
 	/* Production */

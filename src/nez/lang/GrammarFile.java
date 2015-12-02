@@ -6,6 +6,9 @@ import nez.Grammar;
 import nez.Strategy;
 import nez.ast.CommonTree;
 import nez.ast.SourcePosition;
+import nez.ast.Tree;
+import nez.lang.macro.NezMacro;
+import nez.lang.macro.MacroBuilder;
 import nez.util.UList;
 
 public class GrammarFile extends Grammar {
@@ -127,6 +130,19 @@ public class GrammarFile extends Grammar {
 				}
 			}
 		}
+	}
+	
+	MacroBuilder macroBuilder;
+
+	public final void addMacro(Tree<?> node) {
+		if (macroBuilder == null) {
+			macroBuilder = new MacroBuilder();
+		}
+		macroBuilder.addMacro(node);
+	}
+
+	public final Tree<?> desugar(Tree<?> node) {
+		return macroBuilder.desugar(node);
 	}
 
 }

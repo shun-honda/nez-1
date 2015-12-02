@@ -18,6 +18,7 @@ import nez.lang.NezGrammar1;
 import nez.lang.Production;
 import nez.lang.expr.ExpressionCommons;
 import nez.lang.expr.NonTerminal;
+import nez.lang.macro.NezMacro;
 import nez.util.ConsoleUtils;
 import nez.util.StringUtils;
 import nez.util.UList;
@@ -55,7 +56,7 @@ public class NezConstructor extends GrammarFileLoader {
 		if (nezParser == null) {
 			Grammar g = new Grammar("nez");
 			nezParser = new NezGrammar1().load(g, "File").newParser(start, Strategy.newSafeStrategy());
-			assert (nezParser != null);
+			assert(nezParser != null);
 		}
 		return nezParser;
 	}
@@ -465,6 +466,15 @@ public class NezConstructor extends GrammarFileLoader {
 			int index = StringUtils.parseInt(node.getText(1, "*"), -1);
 			Formatter fmt = toFormatter(node.get(2));
 			getGrammarFile().addFormatter(tag, index, fmt);
+			return true;
+		}
+	}
+
+	public class Macro extends NezConstructorDefault {
+		@Override
+		public boolean parse(Tree<?> node) {
+			node = node.get(0);
+			getGrammarFile().addMacro(node);
 			return true;
 		}
 	}
