@@ -9,6 +9,7 @@ import nez.ast.SourcePosition;
 import nez.ast.Tree;
 import nez.lang.macro.NezMacro;
 import nez.lang.macro.MacroBuilder;
+import nez.lang.macro.MacroInterpreter;
 import nez.util.UList;
 
 public class GrammarFile extends Grammar {
@@ -131,7 +132,7 @@ public class GrammarFile extends Grammar {
 			}
 		}
 	}
-	
+
 	MacroBuilder macroBuilder;
 
 	public final void addMacro(Tree<?> node) {
@@ -142,7 +143,7 @@ public class GrammarFile extends Grammar {
 	}
 
 	public final Tree<?> desugar(Tree<?> node) {
-		return macroBuilder.desugar(node);
+		return new MacroInterpreter(macroBuilder).desugar(node, null, -1);
 	}
 
 }

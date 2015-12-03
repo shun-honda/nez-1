@@ -2,11 +2,13 @@ package nez.ext;
 
 import java.io.IOException;
 
+import nez.Grammar;
 import nez.NezProfier;
 import nez.Parser;
 import nez.ast.Tree;
 import nez.ast.TreeWriter;
 import nez.io.SourceContext;
+import nez.lang.GrammarFile;
 import nez.main.Command;
 import nez.main.CommandContext;
 import nez.util.ConsoleUtils;
@@ -14,20 +16,26 @@ import nez.util.ConsoleUtils;
 public class Cdesugar extends Command {
 	@Override
 	public void exec(CommandContext config) throws IOException {
-		Parser g = config.newParser();
-		while (config.hasInput()) {
-			SourceContext input = config.nextInput();
-			Tree<?> node = g.parseCommonTree(input);
-			if (node == null) {
-				ConsoleUtils.println(input.getSyntaxErrorMessage());
-				continue;
+		Grammar g = config.newGrammar();
+		if (g instanceof GrammarFile) {
+			Parser p = config.newParser();
+			while (config.hasInput()) {
+				SourceContext input = config.nextInput();
+				Tree<?> node = p.parseCommonTree(input);
+				if (node == null) {
+					ConsoleUtils.println(input.getSyntaxErrorMessage());
+					continue;
+				}
+				if (input.hasUnconsumed()) {
+					ConsoleUtils.println(input.getUnconsumedMessage());
+				}
+				record(p.getProfiler(), node);
+				p.logProfiler();
+				System.out.println("ParseTree:\n" + node);
+				node = ((GrammarFile) g).desugar(node);
+				System.out.println("Desugared Tree:\n" + node);
+				// makeOutputFile(config, input, node);
 			}
-			if (input.hasUnconsumed()) {
-				ConsoleUtils.println(input.getUnconsumedMessage());
-			}
-			record(g.getProfiler(), node);
-			g.logProfiler();
-			makeOutputFile(config, input, node);
 		}
 	}
 

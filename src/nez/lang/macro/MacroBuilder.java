@@ -107,7 +107,9 @@ public class MacroBuilder extends VisitorMap<DefaultVisitor> {
 	public class ListParam extends DefaultVisitor {
 		@Override
 		public NezMacro accept(Tree<?> node) {
-			return new nez.lang.macro.ListParam(node, visit(node.get(_first, null)), visit(node.get(_list, null)));
+			Tree<?> first = node.get(_first, null);
+			Tree<?> list = node.get(_list, null);
+			return new nez.lang.macro.ListParam(node, new nez.lang.macro.Name(first, first.toText()), new nez.lang.macro.Name(list, list.toText()));
 		}
 	}
 
@@ -135,10 +137,11 @@ public class MacroBuilder extends VisitorMap<DefaultVisitor> {
 			nez.lang.macro.NodeLiteral nodeLiteral = new nez.lang.macro.NodeLiteral(node, node.getText(_name, null));
 			Tree<?> val = node.get(_val);
 			if (val.is(_String)) {
-				nodeLiteral.add(visit(val));
+				nodeLiteral.add(visit(val), null);
 			} else {
 				for (Tree<?> element : val) {
-					nodeLiteral.add(visit(element));
+					NodeElement retVal = (NodeElement) visit(element);
+					nodeLiteral.add(retVal, retVal.desugarLabel);
 				}
 			}
 			return nodeLiteral;
@@ -177,6 +180,19 @@ public class MacroBuilder extends VisitorMap<DefaultVisitor> {
 		@Override
 		public NezMacro accept(Tree<?> node) {
 			return new StringLiteral(node, node.toText());
+		}
+	}
+
+	public class Apply extends DefaultVisitor {
+		@Override
+		public NezMacro accept(Tree<?> node) {
+			java.lang.String name = node.getText(_name, null);
+			nez.lang.macro.Apply func = new nez.lang.macro.Apply(name, node);
+			Tree<?> args = node.get(_param);
+			for (Tree<?> arg : args) {
+				func.addArg(visit(arg));
+			}
+			return func;
 		}
 	}
 
