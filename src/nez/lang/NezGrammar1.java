@@ -146,7 +146,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pListArg() {
-		return Choice(Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListArg")))), Sequence(t("["), P("_"), t("]"), Tag("EmptyList")));
+		return Choice(Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListParam")))), New(t("["), P("_"), t("]"), Tag("EmptyList")));
 	}
 
 	public Expression pTransBlock() {
