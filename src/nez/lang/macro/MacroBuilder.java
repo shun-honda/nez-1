@@ -10,7 +10,7 @@ import nez.util.VisitorMap;
 
 public class MacroBuilder extends VisitorMap<DefaultVisitor> {
 	HashMap<java.lang.String, FunctionSet> desugarFunctionMap = new HashMap<>();
-	HashMap<java.lang.String, FunctionSet> transFunctionMap = new HashMap<>();
+	HashMap<java.lang.String, FunctionSet> transFunctionMap = new HashMap<java.lang.String, FunctionSet>();
 	HashMap<java.lang.String, TransVariable> transVariableMap = new HashMap<>();
 
 	public MacroBuilder() {
@@ -40,6 +40,7 @@ public class MacroBuilder extends VisitorMap<DefaultVisitor> {
 
 	public void addMacro(Tree<?> node) {
 		try {
+			System.out.println(node);
 			System.out.println(visit(node).toString());
 		} catch (Exception e) {
 			ConsoleUtils.exit(1, e.toString());
