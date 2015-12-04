@@ -1,6 +1,8 @@
 package nez.lang.macro;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import nez.ast.Symbol;
 import nez.ast.Tree;
@@ -114,12 +116,14 @@ public class MacroInterpreter {
 
 	public Tree<?> desugar(Apply macro, Tree<?> node) {
 		FunctionSet set = this.pool.transFunctionMap.get(macro.name);
+		List<Tree<?>> args = new ArrayList<>();
 		for (NezMacro element : set.set) {
 			TransFunction func = (TransFunction) element;
 			if (func.params.size() == macro.args.size()) {
 				int i = 0;
 				for (; i < macro.args.size(); i++) {
 					argNode = macro.args.get(i).desugar(this, node);
+					args.add(argNode);
 					NezMacro param = func.params.get(i);
 					if (param instanceof ListParam) {
 						if (argNode.size() > 0) {
@@ -136,10 +140,12 @@ public class MacroInterpreter {
 					}
 				}
 				if (i < macro.args.size()) {
+					args.clear();
 					continue;
 				}
+				this.scope = new Scope(this.scope);
 				for (i = 0; i < macro.args.size(); i++) {
-					argNode = macro.args.get(i).desugar(this, node);
+					argNode = args.get(i);
 					NezMacro param = func.params.get(i);
 					if (param instanceof ListParam) {
 						if (argNode.size() > 0) {
@@ -154,7 +160,6 @@ public class MacroInterpreter {
 						this.scope.setVariable(((Name) param).name, argNode);
 					}
 				}
-				this.scope = new Scope(this.scope);
 				node = func.desugar(this, node);
 				this.scope = this.scope.prev;
 				return node;

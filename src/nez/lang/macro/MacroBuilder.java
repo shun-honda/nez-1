@@ -40,7 +40,6 @@ public class MacroBuilder extends VisitorMap<DefaultVisitor> {
 
 	public void addMacro(Tree<?> node) {
 		try {
-			System.out.println(node);
 			System.out.println(visit(node).toString());
 		} catch (Exception e) {
 			ConsoleUtils.exit(1, e.toString());
