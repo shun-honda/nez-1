@@ -40,7 +40,8 @@ public class MacroBuilder extends VisitorMap<DefaultVisitor> {
 
 	public void addMacro(Tree<?> node) {
 		try {
-			System.out.println(visit(node).toString());
+			NezMacro macro = visit(node);
+			System.out.println(macro.toString());
 		} catch (Exception e) {
 			ConsoleUtils.exit(1, e.toString());
 		}
@@ -151,7 +152,11 @@ public class MacroBuilder extends VisitorMap<DefaultVisitor> {
 	public class Element extends DefaultVisitor {
 		@Override
 		public NezMacro accept(Tree<?> node) {
-			return new NodeElement(node, Symbol.tag(node.get(_label, null).getText(_name, null)), visit(node.get(_expr, null)));
+			Tree<?> labelNode = node.get(_label, null);
+			if (labelNode == null) {
+				return new NodeElement(node, null, visit(node.get(_expr, null)));
+			}
+			return new NodeElement(node, Symbol.tag(labelNode.getText(_name, null)), visit(node.get(_expr, null)));
 		}
 	}
 
