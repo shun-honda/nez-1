@@ -3,6 +3,7 @@ package nez.lang.macro;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Stack;
 
 import nez.ast.Symbol;
 import nez.ast.Tree;
@@ -10,10 +11,42 @@ import nez.ast.Tree;
 public class MacroInterpreter {
 	MacroBuilder pool;
 	Scope scope;
+	Scope global;
 
 	public MacroInterpreter(MacroBuilder builder) {
 		this.pool = builder;
-		this.scope = new Scope();
+		this.global = new Scope();
+		this.scope = this.global;
+	}
+
+	Stack<Scope> scopeStack = new Stack<>();
+
+	public void newScope() {
+		this.scopeStack.push(this.scope);
+		this.scope = new Scope(this.global);
+	}
+
+	public void backPrevScope() {
+		this.scope = this.scopeStack.pop();
+	}
+
+	public void pushScope() {
+		this.scope = new Scope(this.scope);
+	}
+
+	public void popScope() {
+		this.scope = this.scope.prev;
+	}
+
+	public void initGlobal(Tree<?> node) {
+		for (TransVariable var : this.pool.transVariableMap.values()) {
+			this.global.setVariable(var.name, var.desugar(this, node));
+		}
+	}
+
+	public Tree<?> desugar(Tree<?> node) {
+		this.initGlobal(node);
+		return this.desugar(node, null, -1);
 	}
 
 	public Tree<?> desugar(Tree<?> cur, Tree<?> parent, int index) {
@@ -47,11 +80,13 @@ public class MacroInterpreter {
 	}
 
 	public Tree<?> desugar(DesugarFunction macro, Tree<?> node) {
-		this.scope = new Scope(this.scope);
+		this.newScope();
 		for (Name param : macro.params) {
 			this.scope.setVariable(param.name, node.get(Symbol.tag(param.name)));
 		}
-		return macro.child.desugar(this, node);
+		node = macro.child.desugar(this, node);
+		this.backPrevScope();
+		return node;
 	}
 
 	public Tree<?> desugar(TransFunction macro, Tree<?> node) {
@@ -59,15 +94,17 @@ public class MacroInterpreter {
 	}
 
 	public Tree<?> desugar(TransVariable macro, Tree<?> node) {
-		return node;
+		return macro.child.desugar(this, node);
 	}
 
 	public Tree<?> desugar(NodeLiteral macro, Tree<?> node) {
-		Tree<?> newNode = node.newInstance(Symbol.tag(macro.name), node.getSource(), node.getSourcePosition(), node.getLength(), macro.list.size(), null);
+		Tree<?> newNode;
 		NezMacro val = macro.list.get(0);
 		if (val instanceof StringLiteral) {
+			newNode = node.newInstance(Symbol.tag(macro.name), node.getSource(), node.getSourcePosition(), node.getLength(), 0, null);
 			return val.desugar(this, newNode);
 		}
+		newNode = node.newInstance(Symbol.tag(macro.name), node.getSource(), node.getSourcePosition(), node.getLength(), macro.list.size(), null);
 		for (int i = 0; i < macro.list.size(); i++) {
 			newNode.link(i, macro.labels.get(i), macro.list.get(i).desugar(this, node));
 		}
@@ -93,6 +130,7 @@ public class MacroInterpreter {
 	}
 
 	public Tree<?> desugar(StringLiteral macro, Tree<?> node) {
+		node.setValue(macro.str);
 		return node;
 	}
 
@@ -143,7 +181,7 @@ public class MacroInterpreter {
 					args.clear();
 					continue;
 				}
-				this.scope = new Scope(this.scope);
+				this.newScope();
 				for (i = 0; i < macro.args.size(); i++) {
 					argNode = args.get(i);
 					NezMacro param = func.params.get(i);
@@ -161,7 +199,7 @@ public class MacroInterpreter {
 					}
 				}
 				node = func.desugar(this, node);
-				this.scope = this.scope.prev;
+				this.backPrevScope();
 				return node;
 			}
 		}
@@ -201,6 +239,10 @@ class Scope {
 	}
 
 	public Tree<?> getVariable(String name) {
+		Tree<?> ret = this.varMap.get(name);
+		if (ret == null && this.prev != null) {
+			return this.prev.getVariable(name);
+		}
 		return this.varMap.get(name);
 	}
 

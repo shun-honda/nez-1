@@ -143,7 +143,7 @@ public class GrammarFile extends Grammar {
 	}
 
 	public final Tree<?> desugar(Tree<?> node) {
-		return new MacroInterpreter(macroBuilder).desugar(node, null, -1);
+		return new MacroInterpreter(macroBuilder).desugar(node);
 	}
 
 }

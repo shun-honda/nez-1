@@ -134,7 +134,7 @@ public class NezGrammar1 extends Combinator {
 
 	/* AST Transformation */
 	public Expression pMacro() {
-		return New(Choice(Link(null, "TransFuncDecl"), Link(null, "TransVarDecl")), Tag("Macro"));
+		return New(Link(null, "TransFuncDecl"), Tag("Macro"));
 	}
 
 	public Expression pTransFuncDecl() {
@@ -142,7 +142,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pTransParam() {
-		return New(Link(null, "ListArg"), ZeroMore(P("_"), t(","), P("_"), Link(null, "ListArg")), Tag("List"));
+		return New(Option(Link(null, "ListArg"), ZeroMore(P("_"), t(","), P("_"), Link(null, "ListArg"))), Tag("List"));
 	}
 
 	public Expression pListArg() {
@@ -158,7 +158,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression TransExpr() {
-		return Choice(P("NodeLiteral"), P("TransVarDecl"), P("TransApply"), P("String"));
+		return Choice(P("NodeLiteral"), P("TransApply"), P("String"));
 	}
 
 	public Expression NodeLiteral() {
@@ -182,15 +182,11 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pApplyTransParam() {
-		return New(Option(Link(null, P("Field")), ZeroMore(P("_"), t(","), P("_"), Link(null, "Field"))), Tag("List"));
+		return New(Option(Link(null, P("TransExpr")), ZeroMore(P("_"), t(","), P("_"), Link(null, "TransExpr"))), Tag("List"));
 	}
 
 	public Expression pField() {
 		return Sequence(P("Name"), LeftFoldZeroMore("recv", Choice(Sequence(t("."), Link("name", "Name"), Tag("Field")), Sequence(t("["), P("_"), Link("index", "Index"), P("_"), t("]"), Tag("Indexer")))));
-	}
-
-	public Expression pTransVarDecl() {
-		return New(t("define"), P("_"), Link("name", "Name"), P("_"), Link("expr", "NodeLiteral"), Tag("TransVarDecl"));
 	}
 
 	/* Production */
