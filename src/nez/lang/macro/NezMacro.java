@@ -1,6 +1,7 @@
 package nez.lang.macro;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import nez.ast.Symbol;
@@ -23,17 +24,55 @@ public abstract class NezMacro {
 	public abstract Tree<?> desugar(MacroInterpreter interpreter, Tree<?> node);
 }
 
-class FunctionSet {
+abstract class FunctionSet {
 	String name;
-	List<NezMacro> set;
 
 	public FunctionSet(String name) {
 		this.name = name;
+	}
+}
+
+class DesugarFunctionSet extends FunctionSet {
+	List<DesugarFunction> set;
+
+	public DesugarFunctionSet(String name) {
+		super(name);
 		this.set = new ArrayList<>();
 	}
 
-	public void addFunc(NezMacro macro) {
+	public void addFunc(DesugarFunction macro) {
 		this.set.add(macro);
+	}
+}
+
+class TransFunctionSet extends FunctionSet {
+	List<TransFunction> set;
+
+	public TransFunctionSet(String name) {
+		super(name);
+		this.set = new ArrayList<>();
+	}
+
+	public void addFunc(TransFunction macro) {
+		this.set.add(macro);
+	}
+}
+
+class DesugarFunctionSetComparator implements Comparator<DesugarFunction> {
+
+	@Override
+	public int compare(DesugarFunction o1, DesugarFunction o2) {
+		int size1 = o1.params.size();
+		int size2 = o2.params.size();
+		if (size1 > size2) {
+			return -1;
+
+		} else if (size1 == size2) {
+			return 0;
+
+		} else {
+			return 1;
+		}
 	}
 
 }
@@ -205,6 +244,9 @@ class NodeElement extends NezMacro {
 
 	@Override
 	public String toString() {
+		if (this.desugarLabel == null) {
+			return this.child.toString();
+		}
 		return "$" + this.desugarLabel.getSymbol() + " = " + this.child.toString();
 	}
 
@@ -272,6 +314,23 @@ class Name extends NezMacro {
 	}
 }
 
+class ThisExpression extends NezMacro {
+
+	public ThisExpression(Tree<?> node) {
+		super(node, null);
+	}
+
+	@Override
+	public String toString() {
+		return "this";
+	}
+
+	@Override
+	public Tree<?> desugar(MacroInterpreter interpreter, Tree<?> node) {
+		return interpreter.desugar(this, node);
+	}
+}
+
 class StringLiteral extends NezMacro {
 	String str;
 
@@ -283,6 +342,53 @@ class StringLiteral extends NezMacro {
 	@Override
 	public String toString() {
 		return '"' + this.str + '"';
+	}
+
+	@Override
+	public Tree<?> desugar(MacroInterpreter interpreter, Tree<?> node) {
+		return interpreter.desugar(this, node);
+	}
+}
+
+class StringInterpolation extends NezMacro {
+	List<NezMacro> list;
+
+	public StringInterpolation(Tree<?> node) {
+		super(node, null);
+		list = new ArrayList<>();
+	}
+
+	@Override
+	public String toString() {
+		String str = "`";
+		for (NezMacro macro : this.list) {
+			str += macro.toString();
+		}
+		str += "`";
+		return str;
+	}
+
+	public void addElement(NezMacro macro) {
+		this.list.add(macro);
+	}
+
+	@Override
+	public Tree<?> desugar(MacroInterpreter interpreter, Tree<?> node) {
+		return interpreter.desugar(this, node);
+	}
+}
+
+class Text extends NezMacro {
+	String str;
+
+	public Text(Tree<?> node, String str) {
+		super(node, null);
+		this.str = str;
+	}
+
+	@Override
+	public String toString() {
+		return this.str;
 	}
 
 	@Override

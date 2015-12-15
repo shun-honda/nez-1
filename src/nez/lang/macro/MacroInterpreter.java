@@ -1,8 +1,11 @@
 package nez.lang.macro;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.Stack;
 
 import nez.ast.Symbol;
@@ -38,23 +41,25 @@ public class MacroInterpreter {
 		this.scope = this.scope.prev;
 	}
 
-	public void initGlobal(Tree<?> node) {
-		for (TransVariable var : this.pool.transVariableMap.values()) {
-			this.global.setVariable(var.name, var.desugar(this, node));
+	public void init() {
+		Set<Entry<String, DesugarFunctionSet>> entrySet = this.pool.desugarFunctionMap.entrySet();
+		for (Entry<String, DesugarFunctionSet> entry : entrySet) {
+			DesugarFunctionSet set = entry.getValue();
+			Collections.sort(set.set, new DesugarFunctionSetComparator());
 		}
 	}
 
 	public Tree<?> desugar(Tree<?> node) {
-		this.initGlobal(node);
+		this.init();
 		return this.desugar(node, null, -1);
 	}
 
 	public Tree<?> desugar(Tree<?> cur, Tree<?> parent, int index) {
 		String name = cur.getTag().getSymbol();
 		if (this.pool.desugarFunctionMap.containsKey(name)) {
-			FunctionSet set = this.pool.desugarFunctionMap.get(name);
-			for (NezMacro macro : set.set) {
-				DesugarFunction func = (DesugarFunction) macro;
+			DesugarFunctionSet set = this.pool.desugarFunctionMap.get(name);
+			for (DesugarFunction macro : set.set) {
+				DesugarFunction func = macro;
 				if (func.params.size() == cur.size()) {
 					boolean desugaring = true;
 					for (Name param : func.params) {
@@ -70,6 +75,12 @@ public class MacroInterpreter {
 						}
 						return newNode;
 					}
+				} else if (func.params.size() == 0) {
+					Tree<?> newNode = func.desugar(this, cur);
+					if (parent != null) {
+						parent.link(index, parent.getLabel(index), newNode);
+					}
+					return newNode;
 				}
 			}
 		}
@@ -100,7 +111,7 @@ public class MacroInterpreter {
 	public Tree<?> desugar(NodeLiteral macro, Tree<?> node) {
 		Tree<?> newNode;
 		NezMacro val = macro.list.get(0);
-		if (val instanceof StringLiteral) {
+		if (val instanceof StringLiteral || val instanceof StringInterpolation) {
 			newNode = node.newInstance(Symbol.tag(macro.name), node.getSource(), node.getSourcePosition(), node.getLength(), 0, null);
 			return val.desugar(this, newNode);
 		}
@@ -129,8 +140,29 @@ public class MacroInterpreter {
 		return this.scope.getVariable(macro.name);
 	}
 
+	public Tree<?> desugar(ThisExpression macro, Tree<?> node) {
+		return node;
+	}
+
 	public Tree<?> desugar(StringLiteral macro, Tree<?> node) {
 		node.setValue(macro.str);
+		return node;
+	}
+
+	public Tree<?> desugar(StringInterpolation macro, Tree<?> node) {
+		StringBuilder builder = new StringBuilder();
+		for (NezMacro inner : macro.list) {
+			if (inner instanceof Name) {
+				builder.append(inner.desugar(this, node).toText());
+			} else if (inner instanceof Text) {
+				builder.append(((Text) inner).str);
+			}
+		}
+		node.setValue(builder.toString());
+		return node;
+	}
+
+	public Tree<?> desugar(Text macro, Tree<?> node) {
 		return node;
 	}
 
@@ -153,10 +185,9 @@ public class MacroInterpreter {
 	Tree<?> argNode = null;
 
 	public Tree<?> desugar(Apply macro, Tree<?> node) {
-		FunctionSet set = this.pool.transFunctionMap.get(macro.name);
+		TransFunctionSet set = this.pool.transFunctionMap.get(macro.name);
 		List<Tree<?>> args = new ArrayList<>();
-		for (NezMacro element : set.set) {
-			TransFunction func = (TransFunction) element;
+		for (TransFunction func : set.set) {
 			if (func.params.size() == macro.args.size()) {
 				int i = 0;
 				for (; i < macro.args.size(); i++) {

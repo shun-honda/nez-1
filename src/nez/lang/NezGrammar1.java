@@ -138,7 +138,7 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pTransFuncDecl() {
-		return New(t("desugar"), P("_"), Choice(Sequence(t("#"), Tag("DesugarFuncDecl")), Tag("TransFuncDecl")), Link("name", "Name"), P("_"), t("("), P("_"), Link("param", "TransParam"), P("_"), t(")"), P("_"), t("->"), P("_"), Link("body", "TransBlock"));
+		return New(t("desugar"), P("_"), Choice(Sequence(t("#"), Tag("DesugarFuncDecl")), Tag("TransFuncDecl")), Link("name", "Name"), P("_"), t("("), P("_"), Link("param", "TransParam"), P("_"), t(")"), P("_"), t("->"), P("_"), Link("body", "FunctionBody"));
 	}
 
 	public Expression pTransParam() {
@@ -149,27 +149,27 @@ public class NezGrammar1 extends Combinator {
 		return Choice(Sequence(P("Name"), LeftFoldOption("first", Sequence(t(":"), Link("list", "Name"), Tag("ListParam")))), New(t("["), P("_"), t("]"), Tag("EmptyList")));
 	}
 
-	public Expression pTransBlock() {
-		return New(Sequence(Link(null, "TransExpr"), ZeroMore(Sequence(P("NEWLINE"), Link(null, "TransExpr"))), Tag("Block")));
-	}
-
 	public Expression pNEWLINE() {
 		return t("\n");
 	}
 
-	public Expression TransExpr() {
-		return Choice(P("NodeLiteral"), P("TransApply"), P("String"));
+	public Expression pFunctionBody() {
+		return Choice(P("NodeLiteral"), P("TransApply"));
 	}
 
-	public Expression NodeLiteral() {
-		return New(t("#"), Link("name", "Name"), t("["), P("_"), Choice(Link("val", "String"), Link("val", "ChildNodeExprList")), P("_"), t("]"), Tag("NodeLiteral"));
+	public Expression pTransExpr() {
+		return Choice(P("NodeLiteral"), P("TransApply"), P("String"), P("StringInterpolation"));
 	}
 
-	public Expression ChildNodeExprList() {
+	public Expression pNodeLiteral() {
+		return New(t("#"), Link("name", "Name"), t("["), P("_"), Choice(Link("val", "String"), Link("val", "StringInterpolation"), Link("val", "ChildNodeExprList")), P("_"), t("]"), Tag("NodeLiteral"));
+	}
+
+	public Expression pChildNodeExprList() {
 		return New(Link(null, "ChildNodeExpr"), ZeroMore(P("_"), t(","), P("_"), Choice(Link(null, "ChildNodeExpr"))), Tag("List"));
 	}
 
-	public Expression ChildNodeExpr() {
+	public Expression pChildNodeExpr() {
 		return New(Option(Link("label", "NodeLabel"), P("_"), t("=")), P("_"), Choice(Link("expr", "TransExpr")), Tag("Element"));
 	}
 
@@ -186,7 +186,19 @@ public class NezGrammar1 extends Combinator {
 	}
 
 	public Expression pField() {
-		return Sequence(P("Name"), LeftFoldZeroMore("recv", Choice(Sequence(t("."), Link("name", "Name"), Tag("Field")), Sequence(t("["), P("_"), Link("index", "Index"), P("_"), t("]"), Tag("Indexer")))));
+		return Sequence(Choice(P("This"), P("Name")), LeftFoldZeroMore("recv", Choice(Sequence(t("."), Link("name", "Name"), Tag("Field")), Sequence(t("["), P("_"), Link("index", "Index"), P("_"), t("]"), Tag("Indexer")))));
+	}
+
+	public Expression pThis() {
+		return New(t("this"), Tag("This"));
+	}
+
+	public Expression pStringInterpolation() {
+		return New(t("`"), ZeroMore(P("TripleContent")), t("`"), Tag("Interpolation"));
+	}
+
+	public Expression pTripleContent() {
+		return Choice(Sequence(t("${"), P("Name"), t("}")), New(ZeroMore(Not(t("`")), Not(t("${")), AnyChar()), Tag("Text")));
 	}
 
 	/* Production */
