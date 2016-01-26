@@ -47,13 +47,13 @@ public class FormatGenerator {
 	private FileBuilder file;
 	private Grammar grammar = null;
 
-	private boolean inFirst = false;
 	private Element currentLeft = null;
 	private Captured[] nonterminalList = new Captured[4];
 	private String[] nonterminalNameList = new String[4];
 	private Captured[] capturedList = new Captured[4];
 	private String[] tagList = new String[4];
 	private Elements[] elementsStack = new Elements[4];
+	private Elements checkedTag = new Elements();
 	private int nonterminalId = 0;
 	private int capturedId = 0;
 	private int tagId = 0;
@@ -88,10 +88,10 @@ public class FormatGenerator {
 
 	public void makeFormat() {
 		for (Production rule : grammar) {
-			elementsStack[stackTop] = new Elements();
-			makeProductionFormat(rule);
 			String nonterminalName = rule.getLocalName();
 			int nonterminalId = convertNonterminalName(nonterminalName);
+			elementsStack[stackTop] = new Elements();
+			makeProductionFormat(rule);
 			nonterminalList[nonterminalId] = new Captured(elementsStack[stackTop], nonterminalName);
 		}
 	}
@@ -151,6 +151,10 @@ public class FormatGenerator {
 				break;
 			}
 			capturedList[i].setFormat(i);
+			for (int j = 0; j < checkedTag.size; j++) {
+				((TagElement) checkedTag.get(j)).unused = true;
+			}
+			checkedTag = new Elements();
 		}
 	}
 
@@ -162,6 +166,7 @@ public class FormatGenerator {
 			}
 			capturedList[i].writeFormat(i);
 		}
+		writeln("");
 	}
 
 	private FormatVisitor formatVisitor = new FormatVisitor();
@@ -179,7 +184,7 @@ public class FormatGenerator {
 		@Override
 		public Object visitNonTerminal(NonTerminal e, Object a) {
 			Element nonterminal = new NonTerminalElement(convertNonterminalName(e.getLocalName()));
-			if (inFirst) {
+			if (checkNonterminal(e)) {
 				currentLeft = nonterminal;
 			}
 			addElement(nonterminal);
@@ -188,13 +193,11 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitEmpty(Empty e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
 		@Override
 		public Object visitFail(Fail e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
@@ -233,9 +236,7 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitPair(Pair e, Object a) {
-			inFirst = true;
 			visit(e.first);
-			inFirst = false;
 			visit(e.next);
 			return null;
 		}
@@ -260,9 +261,7 @@ public class FormatGenerator {
 				branch[i] = elementsStack[stackTop--];
 			}
 			Element choice = new ChoiceElement(branch);
-			if (inFirst) {
-				currentLeft = choice;
-			}
+			currentLeft = choice;
 			addElement(choice);
 			return null;
 		}
@@ -278,10 +277,11 @@ public class FormatGenerator {
 			elementsStack[stackTop].inOptional = true;
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].hasLF) {
+			if (elementsStack[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(elementsStack[stackTop + 1].left);
 				Elements[] branch = { null, new Elements() };
 				branch[0] = elementsStack[stackTop + 1];
-				branch[1].addElement(elementsStack[stackTop].get(elementsStack[stackTop].size));
+				branch[1].addElement(elementsStack[stackTop + 1].left);
 				addElement(new ChoiceElement(branch));
 			} else {
 				addElement(new OptionElement(elementsStack[stackTop + 1]));
@@ -299,10 +299,11 @@ public class FormatGenerator {
 			elementsStack[++stackTop] = new Elements();
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].hasLF) {
+			if (elementsStack[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(elementsStack[stackTop + 1].left);
 				Elements[] branch = { null, new Elements() };
 				branch[0] = elementsStack[stackTop + 1];
-				branch[1].addElement(elementsStack[stackTop].get(elementsStack[stackTop].size));
+				branch[1].addElement(elementsStack[stackTop + 1].left);
 				addElement(new ChoiceElement(branch));
 			} else {
 				addElement(new ZeroElement(elementsStack[stackTop + 1]));
@@ -320,7 +321,8 @@ public class FormatGenerator {
 			elementsStack[++stackTop] = new Elements();
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].hasLF) {
+			if (elementsStack[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(elementsStack[stackTop + 1].left);
 				addElement(elementsStack[stackTop + 1].get(0));
 			} else {
 				addElement(new OneElement(elementsStack[stackTop + 1]));
@@ -330,13 +332,11 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitAnd(And e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
 		@Override
 		public Object visitNot(Not e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
@@ -353,16 +353,14 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitFoldTree(FoldTree e, Object a) {
-			elementsStack[stackTop].hasLF = true;
+			elementsStack[stackTop].left = currentLeft;
 			if (stackTop + 1 == elementsStack.length) {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
 			}
 			elementsStack[++stackTop] = new Elements();
-			addElement(new LinkedElement(e.label, new Elements(getLeft(stackTop - 2))
-			// new Elements(currentLeft)
-			));
+			addElement(new LinkedElement(e.label, new Elements(currentLeft)));
 			return null;
 		}
 
@@ -413,16 +411,14 @@ public class FormatGenerator {
 				capturedList = newList;
 			}
 			capturedList[capturedId] = new Captured(elementsStack[stackTop--]);
-			if (elementsStack[stackTop].hasLF && !elementsStack[stackTop].inOptional) {
-				Elements[] branch = { new Elements(), null };
+			if (elementsStack[stackTop].left != null && !elementsStack[stackTop].inOptional) {
+				Elements[] branch = { new Elements(), new Elements() };
 				branch[0].addElement(new CapturedElement(capturedId));
-				branch[1] = ((LinkedElement) capturedList[capturedId].elements.get(0)).inner;
+				branch[1].addElement(elementsStack[stackTop].left);
 				((LinkedElement) capturedList[capturedId].elements.get(0)).inner = new Elements(new ChoiceElement(branch));
 			}
 			Element captured = new CapturedElement(capturedId++);
-			if (inFirst) {
-				currentLeft = captured;
-			}
+			currentLeft = captured;
 			addElement(captured);
 			return null;
 		}
@@ -477,7 +473,7 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitOn(OnCondition e, Object a) {
-			// TODO Auto-generated method stub
+			visit(e.inner);
 			return null;
 		}
 
@@ -501,13 +497,13 @@ public class FormatGenerator {
 
 	}
 
-	public Element getLeft(int stackTop) {
-		int size = elementsStack[stackTop].size;
-		if (size != 0) {
-			elementsStack[stackTop].size--;
-			return elementsStack[stackTop].elementList[size - 1];
+	// TODO modify me
+	public boolean checkNonterminal(NonTerminal e) {
+		char first = e.getLocalName().charAt(0);
+		if (first == '"') {
+			return false;
 		}
-		return getLeft(stackTop - 1);
+		return true;
 	}
 
 	public void addElement(Element element) {
@@ -549,9 +545,6 @@ public class FormatGenerator {
 				} else {
 					break;
 				}
-			}
-			if (size == 0) {
-				System.out.println("CAUTION:UNTAGGED BLOCK EXISTS");
 			}
 		}
 
@@ -645,7 +638,7 @@ public class FormatGenerator {
 	class Elements {
 		Element[] elementList;
 		int size;
-		boolean hasLF = false;
+		Element left = null;
 		boolean inOptional = false;
 
 		public Elements() {
@@ -759,6 +752,16 @@ public class FormatGenerator {
 		public void addElements(Elements elements) {
 			for (int i = 0; i < elements.size; i++) {
 				addElement(elements.elementList[i]);
+			}
+		}
+
+		public void remove(Element element) {
+			for (int i = 0; i < size; i++) {
+				if (elementList[i] == element) {
+					size--;
+					System.arraycopy(elementList, i + 1, elementList, i, size - i);
+					break;
+				}
 			}
 		}
 
@@ -914,6 +917,12 @@ public class FormatGenerator {
 				boolean[] currentCheckedNonterminal = checkedNonterminal;
 				checkedNonterminal = new boolean[nonterminalId];
 				linkedInner = inner.checkInner();
+				if (linkedInner == null) {
+					System.out.println("CAUTION:UNTAGGED BLOCK EXISTS in " + this);
+					linkedInner = new LinkedInner[1];
+					linkedInner[0] = new LinkedInner();
+					linkedInner[0].id = -2;
+				}
 				checkedNonterminal = currentCheckedNonterminal;
 				size = linkedInner.length;
 				optimizeLinkedInner();
@@ -926,6 +935,10 @@ public class FormatGenerator {
 			LinkedInner[] newLinkedinner = new LinkedInner[size];
 			int newSize = 0;
 			for (int i = 0; i < size; i++) {
+				if (linkedInner[i].id == -2) {
+					groupSize = 1;
+					return;
+				}
 				if (linkedInner[i].id != -1 && !checked[linkedInner[i].id]) {
 					checked[linkedInner[i].id] = true;
 					newLinkedinner[newSize] = linkedInner[i];
@@ -962,7 +975,7 @@ public class FormatGenerator {
 			labelSet.tagProgression = labelSet.tagProgression / groupSize;
 			boolean[] needTag = new boolean[tagId];
 			String ret = null;
-			if (capturedList[linkedInner[labelFix].id].size == 0) {
+			if (linkedInner[labelFix].id == -2) {
 				ret = toLabel() + ":#Tree";
 			} else {
 				FormatSet[] formatSet = capturedList[linkedInner[labelFix].id].formatSet;
@@ -1103,6 +1116,7 @@ public class FormatGenerator {
 		@Override
 		public int searchTag() {
 			if (unused) {
+				checkedTag.addElement(this);
 				unused = false;
 				return id;
 			}
@@ -1450,7 +1464,7 @@ public class FormatGenerator {
 		@Override
 		public int countOption(int tag) {
 			rate = 1;
-			if (links != null && tagFix[tag]) {
+			if (links != null) {
 				for (int j = 0; j < links.size; j++) {
 					rate *= links.get(j).countOption(tag);
 				}
