@@ -1,24 +1,39 @@
 package nez.bx;
 
 import nez.ast.Symbol;
+import nez.ast.Tree;
+import nez.ast.TreeVisitorMap;
 
-public class Formatter {
+public class Formatter extends TreeVisitorMap<FomatterVisitor> {
 
-	private static final Symbol Format = Symbol.unique("Format");
-	private static final Symbol Name = Symbol.unique("Name");
-	private static final Symbol List = Symbol.unique("List");
-	private static final Symbol Param = Symbol.unique("Param");
-	private static final Symbol TagParam = Symbol.unique("TagParam");
-	private static final Symbol ListParam = Symbol.unique("ListParam");
-	private static final Symbol Text = Symbol.unique("Text");
-	private static final Symbol Apply = Symbol.unique("Apply");
-	private static final Symbol SystemVariable = Symbol.unique("SystemVariable");
-	private static final Symbol Field = Symbol.unique("Field");
+	public class Undefined implements FomatterVisitor {
+		@Override
+		public void accept(Tree<?> node) {
+			throw new RuntimeException("undefined node: " + node);
+		}
+	}
+}
 
-	private static final Symbol name = Symbol.unique("name");
-	private static final Symbol param = Symbol.unique("param");
-	private static final Symbol body = Symbol.unique("body");
-	private static final Symbol label = Symbol.unique("label");
-	private static final Symbol tag = Symbol.unique("tag");
-	private static final Symbol list = Symbol.unique("list");
+interface FomatterVisitor {
+	public void accept(Tree<?> node);
+}
+
+interface FormatSymbols {
+	static final Symbol Format = Symbol.unique("Format");
+	static final Symbol Name = Symbol.unique("Name");
+	static final Symbol List = Symbol.unique("List");
+	static final Symbol Param = Symbol.unique("Param");
+	static final Symbol TagParam = Symbol.unique("TagParam");
+	static final Symbol ListParam = Symbol.unique("ListParam");
+	static final Symbol Text = Symbol.unique("Text");
+	static final Symbol Apply = Symbol.unique("Apply");
+	static final Symbol SystemVariable = Symbol.unique("SystemVariable");
+	static final Symbol Field = Symbol.unique("Field");
+
+	static final Symbol name = Symbol.unique("name");
+	static final Symbol param = Symbol.unique("param");
+	static final Symbol body = Symbol.unique("body");
+	static final Symbol label = Symbol.unique("label");
+	static final Symbol tag = Symbol.unique("tag");
+	static final Symbol list = Symbol.unique("list");
 }
