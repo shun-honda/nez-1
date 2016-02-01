@@ -221,7 +221,6 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitAny(Any e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
@@ -243,7 +242,6 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitSequence(Sequence e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
@@ -499,11 +497,17 @@ public class FormatGenerator {
 
 	// TODO modify me
 	public boolean checkNonterminal(NonTerminal e) {
-		char first = e.getLocalName().charAt(0);
-		if (first == '"') {
+		byte cbyte = (byte) e.getLocalName().charAt(0);
+		if (cbyte == 34 || cbyte == 95 || (cbyte >= 97 && cbyte <= 122)) {
 			return false;
 		}
-		return true;
+		for (int i = 0; i < e.getLocalName().length(); i++) {
+			cbyte = (byte) e.getLocalName().charAt(i);
+			if (cbyte < 65 || cbyte > 90) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void addElement(Element element) {
@@ -573,7 +577,7 @@ public class FormatGenerator {
 					if (left != null) {
 						String format = left.toFormat(formatSet[i].tag);
 						if (format != null) {
-							write(format + " ");
+							write(format);
 						}
 					}
 					String format = toFormat(formatSet[i].tag);
@@ -585,7 +589,7 @@ public class FormatGenerator {
 					if (right != null) {
 						format = right.toFormat(formatSet[i].tag);
 						if (format != null) {
-							write(" " + format);
+							write(format);
 						}
 					}
 					write("`");
@@ -715,7 +719,7 @@ public class FormatGenerator {
 					if (formats == null) {
 						formats = format;
 					} else {
-						formats += " " + format;
+						formats += format;
 					}
 				}
 			}
@@ -1023,19 +1027,19 @@ public class FormatGenerator {
 
 			if (label == null) {
 				if (!linkedInner[labelFix].before.equals("")) {
-					ret += linkedInner[labelFix].before + " ";
+					ret += linkedInner[labelFix].before;
 				}
 				ret += "${$unlabeled}";
 				if (!linkedInner[labelFix].after.equals("")) {
-					ret += " " + linkedInner[labelFix].after;
+					ret += linkedInner[labelFix].after;
 				}
 			} else {
 				if (!linkedInner[labelFix].before.equals("")) {
-					ret += linkedInner[labelFix].before + " ";
+					ret += linkedInner[labelFix].before;
 				}
 				ret += "${" + label + "}";
 				if (!linkedInner[labelFix].after.equals("")) {
-					ret += " " + linkedInner[labelFix].after;
+					ret += linkedInner[labelFix].after;
 				}
 			}
 
@@ -1323,18 +1327,18 @@ public class FormatGenerator {
 					if (label == null) {
 						label = "";
 					}
-					delayWrite("format $repetition" + id + "(" + label + ")");
+					delayWrite("format rep" + id + "(" + label + ")");
 					delayWriteln("`");
 					String format = inner.toFormat(tag);
 					if (format != null) {
-						delayWrite(format + " ${$repetition" + id + "}`");
+						delayWrite(format + " ${rep" + id + "}`");
 					} else {
-						delayWrite("${$repetition" + id + "}`");
+						delayWrite("${rep" + id + "}`");
 					}
 					delayWriteln("");
 					delayWriteln("");
 				}
-				delayWrite("format $repetition" + id + "()");
+				delayWrite("format rep" + id + "()");
 				delayWriteln("``");
 				delayWriteln("");
 				delayWriteln("");
@@ -1366,9 +1370,9 @@ public class FormatGenerator {
 			}
 			String format = inner.toFormat(tag);
 			if (format != null) {
-				return format + " ${$repetition" + id + "}";
+				return format + " ${rep" + id + "}";
 			}
-			return "${$repetition" + id + "}";
+			return "${rep" + id + "}";
 		}
 
 		@Override
@@ -1436,17 +1440,17 @@ public class FormatGenerator {
 					if (label == null) {
 						label = "";
 					}
-					delayWrite("format $repetition" + id + "(" + label + ")");
+					delayWrite("format rep" + id + "(" + label + ")");
 					delayWriteln("`");
 					String format = inner.toFormat(tag);
 					if (format != null) {
-						delayWrite(inner.toFormat(tag) + " ${$repetition" + id + "}`");
+						delayWrite(inner.toFormat(tag) + " ${rep" + id + "}`");
 					} else {
-						delayWrite("${$repetition" + id + "}`");
+						delayWrite("${rep" + id + "}`");
 					}
 					delayWriteln("");
 				}
-				delayWrite("format $repetition" + id + "()");
+				delayWrite("format rep" + id + "()");
 				delayWriteln("``");
 				delayWriteln("");
 			}
@@ -1480,10 +1484,10 @@ public class FormatGenerator {
 			if (tagFix[tag]) {
 				String format = inner.toFormat(tag);
 				if (format != null) {
-					return format + " ${$repetition" + id + "}";
+					return format + " ${rep" + id + "}";
 				}
 			}
-			return "${$repetition" + id + "}";
+			return "${rep" + id + "}";
 		}
 
 		@Override
