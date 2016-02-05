@@ -53,6 +53,7 @@ public class FormatGenerator {
 	private Captured[] capturedList = new Captured[4];
 	private String[] tagList = new String[4];
 	private Elements[] elementsStack = new Elements[4];
+	private StackState[] stackStates = new StackState[4];
 	private Elements checkedTag = new Elements();
 	private int nonterminalId = 0;
 	private int capturedId = 0;
@@ -91,6 +92,7 @@ public class FormatGenerator {
 			String nonterminalName = rule.getLocalName();
 			int nonterminalId = convertNonterminalName(nonterminalName);
 			elementsStack[stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			makeProductionFormat(rule);
 			productionList[nonterminalId] = elementsStack[stackTop];
 		}
@@ -123,10 +125,12 @@ public class FormatGenerator {
 	public Elements reshapeElements(Elements elements) {
 		if (elements.hasCapturedElement()) {
 			elementsStack[stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			CapturedElement captured = null;
 			for (int i = 0; i < elements.size; i++) {
 				if (elements.get(i) instanceof CapturedElement) {
 					elementsStack[++stackTop] = new Elements();
+					stackStates[stackTop] = new StackState();
 					captured = (CapturedElement) elements.get(i);
 				} else {
 					elementsStack[stackTop].addElement(elements.get(i));
@@ -252,9 +256,13 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			for (int i = 0; i < e.size(); i++) {
 				elementsStack[++stackTop] = new Elements();
+				stackStates[stackTop] = new StackState();
 				visit(e.get(i));
 				branch[i] = elementsStack[stackTop--];
 			}
@@ -270,16 +278,20 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
-			elementsStack[stackTop].inOptional = true;
+			stackStates[stackTop] = new StackState();
+			stackStates[stackTop].inOptional = true;
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].left != null) {
-				elementsStack[stackTop].remove(elementsStack[stackTop + 1].left);
+			if (stackStates[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(stackStates[stackTop + 1].left);
 				Elements[] branch = { null, new Elements() };
 				branch[0] = elementsStack[stackTop + 1];
-				branch[1].addElement(elementsStack[stackTop + 1].left);
+				branch[1].addElement(stackStates[stackTop + 1].left);
 				addElement(new ChoiceElement(branch));
 			} else {
 				addElement(new OptionElement(elementsStack[stackTop + 1]));
@@ -293,15 +305,19 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].left != null) {
-				elementsStack[stackTop].remove(elementsStack[stackTop + 1].left);
+			if (stackStates[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(stackStates[stackTop + 1].left);
 				Elements[] branch = { null, new Elements() };
 				branch[0] = elementsStack[stackTop + 1];
-				branch[1].addElement(elementsStack[stackTop + 1].left);
+				branch[1].addElement(stackStates[stackTop + 1].left);
 				addElement(new ChoiceElement(branch));
 			} else {
 				addElement(new ZeroElement(elementsStack[stackTop + 1]));
@@ -315,12 +331,16 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].left != null) {
-				elementsStack[stackTop].remove(elementsStack[stackTop + 1].left);
+			if (stackStates[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(stackStates[stackTop + 1].left);
 				addElement(elementsStack[stackTop + 1].get(0));
 			} else {
 				addElement(new OneElement(elementsStack[stackTop + 1]));
@@ -344,20 +364,28 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			return null;
 		}
 
 		@Override
 		public Object visitFoldTree(FoldTree e, Object a) {
-			elementsStack[stackTop].left = currentLeft;
+			stackStates[stackTop].left = currentLeft;
 			if (stackTop + 1 == elementsStack.length) {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			addElement(new LinkedElement(e.label, new Elements(currentLeft)));
 			return null;
 		}
@@ -368,8 +396,12 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			visit(e.get(0));
 			stackTop--;
 			addElement(new LinkedElement(e.label, elementsStack[stackTop + 1]));
@@ -409,10 +441,10 @@ public class FormatGenerator {
 				capturedList = newList;
 			}
 			capturedList[capturedId] = new Captured(elementsStack[stackTop--]);
-			if (elementsStack[stackTop].left != null && !elementsStack[stackTop].inOptional) {
+			if (stackStates[stackTop].left != null && !stackStates[stackTop].inOptional) {
 				Elements[] branch = { new Elements(), new Elements() };
 				branch[0].addElement(new CapturedElement(capturedId));
-				branch[1].addElement(elementsStack[stackTop].left);
+				branch[1].addElement(stackStates[stackTop].left);
 				((LinkedElement) capturedList[capturedId].elements.get(0)).inner = new Elements(new ChoiceElement(branch));
 			}
 			Element captured = new CapturedElement(capturedId++);
@@ -621,8 +653,6 @@ public class FormatGenerator {
 	class Elements {
 		Element[] elementList;
 		int size;
-		Element left = null;
-		boolean inOptional = false;
 
 		public Elements() {
 			elementList = new Element[4];
@@ -1565,6 +1595,11 @@ public class FormatGenerator {
 			return "(" + this.inner + ")?";
 		}
 
+	}
+
+	class StackState {
+		Element left = null;
+		boolean inOptional = false;
 	}
 
 	class LabelSet {
