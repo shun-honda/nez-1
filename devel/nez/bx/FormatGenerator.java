@@ -62,6 +62,7 @@ public class FormatGenerator {
 	private boolean[] checkedNonterminal;
 	private boolean[] checkedNullLabelTag;
 	private int repetitionId = 0;
+	private boolean hasRepetition;
 
 	public FormatGenerator(String dir, String outputFile) {
 		this.outputFile = outputFile;
@@ -188,7 +189,7 @@ public class FormatGenerator {
 		@Override
 		public Object visitNonTerminal(NonTerminal e, Object a) {
 			Element nonterminal = new NonTerminalElement(convertNonterminalName(e.getLocalName()));
-			if (checkNonterminal(e)) {
+			if (inCapture(e)) {
 				currentLeft = nonterminal;
 			}
 			addElement(nonterminal);
@@ -528,7 +529,7 @@ public class FormatGenerator {
 	}
 
 	// TODO modify me
-	public boolean checkNonterminal(NonTerminal e) {
+	public boolean inCapture(NonTerminal e) {
 		byte cbyte = (byte) e.getLocalName().charAt(0);
 		if (cbyte == 34 || cbyte == 95 || (cbyte >= 97 && cbyte <= 122)) {
 			return false;
@@ -583,6 +584,7 @@ public class FormatGenerator {
 				// if (formatSet[i].link != null ||
 				// !checkedNullLabelTag[formatSet[i].tag]) {
 				for (int labelProgression = 0, tagProgression = 0; true; tagProgression++) {
+					hasRepetition = false;
 					LabelSet labelSet = new LabelSet(labelProgression, tagProgression);
 					String label = optionFix(formatSet[i].link, labelSet, formatSet[i].tag);
 					if (labelSet.labelProgression > 0) {
@@ -597,7 +599,11 @@ public class FormatGenerator {
 						label = "";
 						checkedNullLabelTag[formatSet[i].tag] = true;
 					}
-					write("format " + tagList[formatSet[i].tag] + "(" + label + ")");
+					if (hasRepetition) {
+						write("format " + tagList[formatSet[i].tag] + "(n" + label + ":ns)");
+					} else {
+						write("format " + tagList[formatSet[i].tag] + "(" + label + ")");
+					}
 					writeln("`");
 					if (left != null) {
 						String format = left.toFormat(formatSet[i].tag);
@@ -628,6 +634,13 @@ public class FormatGenerator {
 		public String optionFix(Elements links, LabelSet labelSet, int tag) {
 			if (links == null) {
 				return null;
+			}
+			for (int i = 0; i < links.size; i++) {
+				Element link = links.get(i);
+				if (link instanceof OneElement || link instanceof ZeroElement) {
+					hasRepetition = true;
+					break;
+				}
 			}
 			for (int i = 0; i < links.size; i++) {
 				Element link = links.get(i);
@@ -989,7 +1002,11 @@ public class FormatGenerator {
 			boolean[] needTag = new boolean[tagId];
 			String ret = null;
 			if (linkedInner[labelFix].id == -2) {
-				ret = toLabel() + ":#Tree";
+				if (hasRepetition) {
+					ret = " #Tree";
+				} else {
+					ret = toLabel() + " #Tree";
+				}
 			} else {
 				FormatSet[] formatSet = capturedList[linkedInner[labelFix].id].formatSet;
 				needTag[formatSet[0].tag] = true;
@@ -1007,7 +1024,11 @@ public class FormatGenerator {
 				for (int i = 0; i < tagId; i++) {
 					if (needTag[i]) {
 						if (ret == null) {
-							ret = toLabel() + ":" + tagList[i];
+							if (hasRepetition) {
+								ret = " " + tagList[i];
+							} else {
+								ret = toLabel() + " " + tagList[i];
+							}
 						} else {
 							ret += "|" + tagList[i];
 						}
@@ -1034,7 +1055,15 @@ public class FormatGenerator {
 		public String toFormat(int tag) {
 			String ret = "";
 
-			if (label == null) {
+			if (hasRepetition) {
+				if (!linkedInner[labelFix].before.equals("")) {
+					ret += linkedInner[labelFix].before;
+				}
+				ret += "${n}";
+				if (!linkedInner[labelFix].after.equals("")) {
+					ret += linkedInner[labelFix].after;
+				}
+			} else if (label == null) {
 				if (!linkedInner[labelFix].before.equals("")) {
 					ret += linkedInner[labelFix].before;
 				}
@@ -1336,13 +1365,13 @@ public class FormatGenerator {
 					if (label == null) {
 						label = "";
 					}
-					delayWrite("format rep" + id + "(" + label + ")");
+					delayWrite("format rep" + id + "(n" + label + ":ns)");
 					delayWriteln("`");
 					String format = inner.toFormat(tag);
 					if (format != null) {
-						delayWrite(format + " ${rep" + id + "}`");
+						delayWrite(format + " ${rep" + id + "(ns)}`");
 					} else {
-						delayWrite("${rep" + id + "}`");
+						delayWrite("${rep" + id + "(ns)}`");
 					}
 					delayWriteln("");
 					delayWriteln("");
@@ -1379,9 +1408,9 @@ public class FormatGenerator {
 			}
 			String format = inner.toFormat(tag);
 			if (format != null) {
-				return format + " ${rep" + id + "}";
+				return format + " ${rep" + id + "(ns)}";
 			}
-			return "${rep" + id + "}";
+			return "${rep" + id + "(ns)}";
 		}
 
 		@Override
@@ -1449,13 +1478,13 @@ public class FormatGenerator {
 					if (label == null) {
 						label = "";
 					}
-					delayWrite("format rep" + id + "(" + label + ")");
+					delayWrite("format rep" + id + "(n" + label + ":ns)");
 					delayWriteln("`");
 					String format = inner.toFormat(tag);
 					if (format != null) {
-						delayWrite(inner.toFormat(tag) + " ${rep" + id + "}`");
+						delayWrite(inner.toFormat(tag) + " ${rep" + id + "(ns)}`");
 					} else {
-						delayWrite("${rep" + id + "}`");
+						delayWrite("${rep" + id + "(ns)}`");
 					}
 					delayWriteln("");
 				}
@@ -1493,10 +1522,10 @@ public class FormatGenerator {
 			if (tagFix[tag]) {
 				String format = inner.toFormat(tag);
 				if (format != null) {
-					return format + " ${rep" + id + "}";
+					return format + " ${rep" + id + "(ns)}";
 				}
 			}
-			return "${rep" + id + "}";
+			return "${rep" + id + "(ns)}";
 		}
 
 		@Override
@@ -1554,6 +1583,13 @@ public class FormatGenerator {
 			int generalProgression = labelSet.labelProgression / rate;
 			if (currentBranch != rate - 1) {
 				labelSet.labelProgression = currentBranch;
+				for (int j = 0; j < link.size; j++) {
+					Element l = link.get(j);
+					if (l instanceof OneElement || l instanceof ZeroElement) {
+						hasRepetition = true;
+						break;
+					}
+				}
 				for (int j = 0; j < link.size; j++) {
 					labelSet = link.get(j).optionFix(labelSet, tag);
 				}
