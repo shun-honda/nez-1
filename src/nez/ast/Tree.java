@@ -287,6 +287,9 @@ public abstract class Tree<E extends Tree<E>> extends AbstractList<E> implements
 			String s = this.source.subString(pos, epos);
 			/* Binary */
 			byte[] tmp = this.source.subByte(pos, epos);
+			if (tmp == null) {
+				tmp = new byte[0];
+			}
 			try {
 				if (Arrays.equals(tmp, s.getBytes("UTF8"))) {
 					this.value = s;

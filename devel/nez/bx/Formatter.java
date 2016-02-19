@@ -37,6 +37,10 @@ public class Formatter extends AbstractFormatter {
 				}
 			}
 			return true;
+		} else if (formatter.params.get(0) instanceof ListParam) {
+			if (node.size() != 0) {
+				return true;
+			}
 		} else if (formatter.params.size() == 0) {
 			return true;
 		}
@@ -143,6 +147,11 @@ public class Formatter extends AbstractFormatter {
 				} else {
 					throw new RuntimeException("label \"" + name + "\" is not found");
 				}
+			} else if (param instanceof ListParam) {
+				ListParam listParam = (ListParam) param;
+				argNode = node;
+				this.context.scope.setVariable(getListArgumentValue(listParam.name, node), removeArgNode(0));
+				this.context.scope.setVariable(listParam.listName, argNode);
 			}
 		}
 		String ret = "";
