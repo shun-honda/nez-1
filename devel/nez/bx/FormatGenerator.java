@@ -617,7 +617,7 @@ public class FormatGenerator {
 					}
 					String format = toFormat(formatSet[i].tag);
 					if (format == null) {
-						write("${$toText}");
+						write("${$value}");
 					} else {
 						write(format);
 					}
@@ -1380,7 +1380,7 @@ public class FormatGenerator {
 					delayWriteln("");
 					delayWriteln("");
 				}
-				delayWrite("format rep" + id + "()");
+				delayWrite("format rep" + id + "([])");
 				delayWriteln("``");
 				delayWriteln("");
 				delayWriteln("");
@@ -1492,7 +1492,7 @@ public class FormatGenerator {
 					}
 					delayWriteln("");
 				}
-				delayWrite("format rep" + id + "()");
+				delayWrite("format rep" + id + "([])");
 				delayWriteln("``");
 				delayWriteln("");
 			}
