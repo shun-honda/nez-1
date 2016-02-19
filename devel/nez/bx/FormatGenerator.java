@@ -55,11 +55,11 @@ public class FormatGenerator {
 	private Elements[] elementsStack = new Elements[4];
 	private StackState[] stackStates = new StackState[4];
 	private Elements checkedTag = new Elements();
-	private int nonterminalId = 0;
+	private int productionId = 0;
 	private int capturedId = 0;
 	private int tagId = 0;
 	private int stackTop = 0;
-	private boolean[] checkedNonterminal;
+	private boolean[] checkedProduction;
 	private boolean[] checkedNullLabelTag;
 	private int repetitionId = 0;
 	private boolean hasRepetition;
@@ -72,10 +72,10 @@ public class FormatGenerator {
 	public void generate(Grammar grammar) {
 		this.grammar = grammar;
 		this.openOutputFile();
-		this.makeFormat();
-		this.reshapeFormat();
-		this.makeFormatSet();
-		this.writeFormat();
+		this.makeStandardform();
+		this.reshapeStandardform();
+		this.reshapeCaptured();
+		this.writeBxnez();
 	}
 
 	public void openOutputFile() {
@@ -88,7 +88,7 @@ public class FormatGenerator {
 		}
 	}
 
-	public void makeFormat() {
+	public void makeStandardform() {
 		for (Production rule : grammar) {
 			String nonterminalName = rule.getLocalName();
 			int nonterminalId = convertNonterminalName(nonterminalName);
@@ -100,12 +100,12 @@ public class FormatGenerator {
 	}
 
 	public int convertNonterminalName(String nonterminalName) {
-		for (int i = 0; i < nonterminalId; i++) {
+		for (int i = 0; i < productionId; i++) {
 			if (nonterminalName.equals(productionNameList[i])) {
 				return i;
 			}
 		}
-		if (nonterminalId == productionNameList.length) {
+		if (productionId == productionNameList.length) {
 			String[] newList = new String[productionNameList.length * 2];
 			System.arraycopy(productionNameList, 0, newList, 0, productionNameList.length);
 			productionNameList = newList;
@@ -113,12 +113,12 @@ public class FormatGenerator {
 			System.arraycopy(productionList, 0, newList2, 0, productionList.length);
 			productionList = newList2;
 		}
-		productionNameList[nonterminalId] = nonterminalName;
-		return nonterminalId++;
+		productionNameList[productionId] = nonterminalName;
+		return productionId++;
 	}
 
-	public void reshapeFormat() {
-		for (int i = 0; i < nonterminalId; i++) {
+	public void reshapeStandardform() {
+		for (int i = 0; i < productionId; i++) {
 			productionList[i] = reshapeElements(productionList[i]);
 		}
 	}
@@ -150,7 +150,7 @@ public class FormatGenerator {
 		return elements;
 	}
 
-	public void makeFormatSet() {
+	public void reshapeCaptured() {
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
 				break;
@@ -163,7 +163,7 @@ public class FormatGenerator {
 		}
 	}
 
-	public void writeFormat() {
+	public void writeBxnez() {
 		checkedNullLabelTag = new boolean[tagId];
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
@@ -189,7 +189,7 @@ public class FormatGenerator {
 		@Override
 		public Object visitNonTerminal(NonTerminal e, Object a) {
 			Element nonterminal = new NonTerminalElement(convertNonterminalName(e.getLocalName()));
-			if (inCapture(e)) {
+			if (inCapture(e.getLocalName())) {
 				currentLeft = nonterminal;
 			}
 			addElement(nonterminal);
@@ -529,13 +529,13 @@ public class FormatGenerator {
 	}
 
 	// TODO modify me
-	public boolean inCapture(NonTerminal e) {
-		byte cbyte = (byte) e.getLocalName().charAt(0);
+	public boolean inCapture(String name) {
+		byte cbyte = (byte) name.charAt(0);
 		if (cbyte == 34 || cbyte == 95 || (cbyte >= 97 && cbyte <= 122)) {
 			return false;
 		}
-		for (int i = 0; i < e.getLocalName().length(); i++) {
-			cbyte = (byte) e.getLocalName().charAt(i);
+		for (int i = 0; i < name.length(); i++) {
+			cbyte = (byte) name.charAt(i);
 			if (cbyte < 65 || cbyte > 90) {
 				return true;
 			}
@@ -549,7 +549,7 @@ public class FormatGenerator {
 
 	class Captured {
 		Elements elements;
-		FormatSet[] formatSet = new FormatSet[4];
+		TagAndLinks[] formatSet = new TagAndLinks[4];
 		Elements left;
 		Elements right;
 		int size = 0;
@@ -560,17 +560,17 @@ public class FormatGenerator {
 
 		public void makeFormatSet(int capturedId) {
 			while (true) {
-				checkedNonterminal = new boolean[nonterminalId];
+				checkedProduction = new boolean[productionId];
 				int tag = elements.searchTag();
 				if (tag != -1) {
 					if (size == formatSet.length) {
-						FormatSet[] newList = new FormatSet[formatSet.length * 2];
+						TagAndLinks[] newList = new TagAndLinks[formatSet.length * 2];
 						System.arraycopy(formatSet, 0, newList, 0, formatSet.length);
 						formatSet = newList;
 					}
-					formatSet[size] = new FormatSet();
+					formatSet[size] = new TagAndLinks();
 					formatSet[size].tag = tag;
-					checkedNonterminal = new boolean[nonterminalId];
+					checkedProduction = new boolean[productionId];
 					formatSet[size++].link = elements.searchLink();
 				} else {
 					break;
@@ -857,30 +857,30 @@ public class FormatGenerator {
 		@Override
 		public Elements searchLink() {
 			nullCheck();
-			if (checkedNonterminal[id]) {
+			if (checkedProduction[id]) {
 				return null;
 			}
-			checkedNonterminal[id] = true;
+			checkedProduction[id] = true;
 			return elements.searchLink();
 		}
 
 		@Override
 		public int searchTag() {
 			nullCheck();
-			if (checkedNonterminal[id]) {
+			if (checkedProduction[id]) {
 				return -1;
 			}
-			checkedNonterminal[id] = true;
+			checkedProduction[id] = true;
 			return elements.searchTag();
 		}
 
 		@Override
 		public LinkedInner[] checkInner() {
 			nullCheck();
-			if (checkedNonterminal[id]) {
+			if (checkedProduction[id]) {
 				return null;
 			}
-			checkedNonterminal[id] = true;
+			checkedProduction[id] = true;
 			return elements.checkInner();
 		}
 
@@ -940,8 +940,8 @@ public class FormatGenerator {
 		@Override
 		public Elements searchLink() {
 			if (linkedInner == null) {
-				boolean[] currentCheckedNonterminal = checkedNonterminal;
-				checkedNonterminal = new boolean[nonterminalId];
+				boolean[] currentCheckedNonterminal = checkedProduction;
+				checkedProduction = new boolean[productionId];
 				linkedInner = inner.checkInner();
 				if (linkedInner == null) {
 					System.out.println("CAUTION:UNTAGGED BLOCK EXISTS in " + this);
@@ -949,7 +949,7 @@ public class FormatGenerator {
 					linkedInner[0] = new LinkedInner();
 					linkedInner[0].id = -2;
 				}
-				checkedNonterminal = currentCheckedNonterminal;
+				checkedProduction = currentCheckedNonterminal;
 				size = linkedInner.length;
 				optimizeLinkedInner();
 			}
@@ -1008,7 +1008,7 @@ public class FormatGenerator {
 					ret = toLabel() + " #Tree";
 				}
 			} else {
-				FormatSet[] formatSet = capturedList[linkedInner[labelFix].id].formatSet;
+				TagAndLinks[] formatSet = capturedList[linkedInner[labelFix].id].formatSet;
 				needTag[formatSet[0].tag] = true;
 				for (int i = 1; i < capturedList[linkedInner[labelFix].id].size; i++) {
 					needTag[formatSet[i].tag] = true;
@@ -1675,7 +1675,7 @@ public class FormatGenerator {
 		}
 	}
 
-	class FormatSet {
+	class TagAndLinks {
 		int tag;
 		Elements link;
 	}
