@@ -11,6 +11,8 @@ public abstract class AbstractFormatter {
 
 	public abstract String format(ListParam format, Tree<?> node);
 
+	public abstract String format(EmptyListParam format, Tree<?> node);
+
 	public abstract String format(Text format, Tree<?> node);
 
 	public abstract String format(Name format, Tree<?> node);

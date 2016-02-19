@@ -23,7 +23,7 @@ public class Formatter extends AbstractFormatter {
 				}
 			}
 		}
-		return null;
+		throw new RuntimeException("label \"" + node.getTag() + "\" is not found");
 	}
 
 	public boolean matchFormatter(TagFormat formatter, Tree<?> node, int paramSize) {
@@ -84,6 +84,10 @@ public class Formatter extends AbstractFormatter {
 					if (!checkListParam(listParam, getUserDefinedArgument(args.get(i)))) {
 						return false;
 					}
+				} else if (param instanceof EmptyListParam) {
+					if (getUserDefinedArgument(args.get(i)).size() != 0) {
+						return false;
+					}
 				}
 			}
 			return true;
@@ -92,10 +96,30 @@ public class Formatter extends AbstractFormatter {
 	}
 
 	public boolean checkListParam(ListParam param, Tree<?> node) {
-		if (node != null && node.size() != 1) {
+		if (node != null && node.size() != 0) {
+			if (param.name instanceof TagParam) {
+				TagParam tagParam = (TagParam) param.name;
+				if (!checkListInnerFirstTagParameter(tagParam, node)) {
+					return false;
+				}
+			}
 			return true;
 		}
 		return false;
+	}
+
+	public boolean checkListInnerFirstTagParameter(TagParam param, Tree<?> node) {
+		Tree<?> targetNode = node.get(0);
+		if (targetNode != null) {
+			Symbol symbol = targetNode.getTag();
+			for (Symbol tag : param.tags) {
+				if (symbol.equals(tag)) {
+					return true;
+				}
+			}
+			return false;
+		}
+		throw new RuntimeException("label \"" + param.name + "\" is not found");
 	}
 
 	public String format(Tree<?> node) {
@@ -109,7 +133,7 @@ public class Formatter extends AbstractFormatter {
 	@Override
 	public String format(TagFormat format, Tree<?> node) {
 		this.context.scope = new Scope(this.context.scope);
-		this.context.scope.setVariable("this", node); // FIXME
+		this.context.scope.initSystemVariable(node);
 		for (Format param : format.params) {
 			if (param instanceof Name) {
 				String name = ((Name) param).name;
@@ -131,12 +155,17 @@ public class Formatter extends AbstractFormatter {
 
 	@Override
 	public String format(TagParam format, Tree<?> node) {
-		return null;
+		throw new RuntimeException("unexpected tag parameter \"" + format.name + "\" is not found");
 	}
 
 	@Override
 	public String format(ListParam format, Tree<?> node) {
-		return null;
+		throw new RuntimeException("unexpected list parameter \"" + format + "\" is not found");
+	}
+
+	@Override
+	public String format(EmptyListParam format, Tree<?> node) {
+		throw new RuntimeException("unexpected empty list parameter \"" + format + "\" is not found");
 	}
 
 	@Override
@@ -207,15 +236,28 @@ public class Formatter extends AbstractFormatter {
 		} else if (formatter instanceof ListParam) {
 			ListParam listParam = (ListParam) formatter;
 			argNode = node;
-			this.context.scope.setVariable(listParam.name, removeArgNode(0));
+			this.context.scope.setVariable(getListArgumentValue(listParam.name, node), removeArgNode(0));
 			this.context.scope.setVariable(listParam.listName, argNode);
 			return;
 		} else if (formatter instanceof TagParam) {
 			TagParam tagParam = (TagParam) formatter;
 			this.context.scope.setVariable(tagParam.name, node);
 			return;
+		} else if (formatter instanceof EmptyListParam) {
+			return;
 		}
 		throw new RuntimeException("unexpected format:" + formatter);
+	}
+
+	public String getListArgumentValue(Format value, Tree<?> node) {
+		if (value instanceof Name) {
+			Name nameValue = (Name) value;
+			return nameValue.name;
+		} else if (value instanceof TagParam) {
+			TagParam tagValue = (TagParam) value;
+			return tagValue.name;
+		}
+		throw new RuntimeException("unexpected format:" + value);
 	}
 
 	public Tree<?> getUserDefinedArgument(Format formatter) {

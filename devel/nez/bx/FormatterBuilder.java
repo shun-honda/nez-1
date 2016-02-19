@@ -99,8 +99,15 @@ public class FormatterBuilder extends TreeVisitorMap<FomatterVisitor> {
 	public class ListParam extends Undefined implements FormatSymbols {
 		@Override
 		public Format accept(Tree<?> node) {
-			nez.bx.ListParam listParam = new nez.bx.ListParam(node.getText(label, null), node.getText(list, null));
+			nez.bx.ListParam listParam = new nez.bx.ListParam(visit(node.get(label, null)), node.getText(list, null));
 			return listParam;
+		}
+	}
+
+	public class EmptyListParam extends Undefined {
+		@Override
+		public Format accept(Tree<?> node) {
+			return new nez.bx.EmptyListParam();
 		}
 	}
 
@@ -214,6 +221,10 @@ class Scope {
 	public Scope(Scope prev) {
 		this();
 		this.prev = prev;
+	}
+
+	public void initSystemVariable(Tree<?> thisNode) {
+		this.setVariable("this", thisNode);
 	}
 
 	public Tree<?> getVariable(String name) {

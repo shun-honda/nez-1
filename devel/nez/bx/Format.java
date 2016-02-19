@@ -60,10 +60,11 @@ class TagParam extends Format {
 }
 
 class ListParam extends Format {
-	String name;
+	Format name;
+	// String name;
 	String listName;
 
-	public ListParam(String name, String listName) {
+	public ListParam(Format name, String listName) {
 		this.name = name;
 		this.listName = listName;
 	}
@@ -73,6 +74,14 @@ class ListParam extends Format {
 		return formatter.format(this, node);
 	}
 
+}
+
+class EmptyListParam extends Format {
+
+	@Override
+	public String format(AbstractFormatter formatter, Tree<?> node) {
+		return formatter.format(this, node);
+	}
 }
 
 class UserDefinedFormat extends Format {
