@@ -47,20 +47,22 @@ public class FormatGenerator {
 	private FileBuilder file;
 	private Grammar grammar = null;
 
-	private boolean inFirst = false;
 	private Element currentLeft = null;
-	private Captured[] nonterminalList = new Captured[4];
-	private String[] nonterminalNameList = new String[4];
+	private Elements[] productionList = new Elements[4];
+	private String[] productionNameList = new String[4];
 	private Captured[] capturedList = new Captured[4];
 	private String[] tagList = new String[4];
 	private Elements[] elementsStack = new Elements[4];
-	private int nonterminalId = 0;
+	private StackState[] stackStates = new StackState[4];
+	private Elements checkedTag = new Elements();
+	private int productionId = 0;
 	private int capturedId = 0;
 	private int tagId = 0;
 	private int stackTop = 0;
-	private boolean[] checkedNonterminal;
+	private boolean[] checkedProduction;
 	private boolean[] checkedNullLabelTag;
 	private int repetitionId = 0;
+	private boolean hasRepetition;
 
 	public FormatGenerator(String dir, String outputFile) {
 		this.outputFile = outputFile;
@@ -70,10 +72,10 @@ public class FormatGenerator {
 	public void generate(Grammar grammar) {
 		this.grammar = grammar;
 		this.openOutputFile();
-		this.makeFormat();
-		this.reshapeFormat();
-		this.makeFormatSet();
-		this.writeFormat();
+		this.makeStandardform();
+		this.reshapeStandardform();
+		this.reshapeCaptured();
+		this.writeBxnez();
 	}
 
 	public void openOutputFile() {
@@ -86,47 +88,50 @@ public class FormatGenerator {
 		}
 	}
 
-	public void makeFormat() {
+	public void makeStandardform() {
 		for (Production rule : grammar) {
-			elementsStack[stackTop] = new Elements();
-			makeProductionFormat(rule);
 			String nonterminalName = rule.getLocalName();
 			int nonterminalId = convertNonterminalName(nonterminalName);
-			nonterminalList[nonterminalId] = new Captured(elementsStack[stackTop], nonterminalName);
+			elementsStack[stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
+			makeProductionFormat(rule);
+			productionList[nonterminalId] = elementsStack[stackTop];
 		}
 	}
 
 	public int convertNonterminalName(String nonterminalName) {
-		for (int i = 0; i < nonterminalId; i++) {
-			if (nonterminalName.equals(nonterminalNameList[i])) {
+		for (int i = 0; i < productionId; i++) {
+			if (nonterminalName.equals(productionNameList[i])) {
 				return i;
 			}
 		}
-		if (nonterminalId == nonterminalNameList.length) {
-			String[] newList = new String[nonterminalNameList.length * 2];
-			System.arraycopy(nonterminalNameList, 0, newList, 0, nonterminalNameList.length);
-			nonterminalNameList = newList;
-			Captured[] newList2 = new Captured[nonterminalList.length * 2];
-			System.arraycopy(nonterminalList, 0, newList2, 0, nonterminalList.length);
-			nonterminalList = newList2;
+		if (productionId == productionNameList.length) {
+			String[] newList = new String[productionNameList.length * 2];
+			System.arraycopy(productionNameList, 0, newList, 0, productionNameList.length);
+			productionNameList = newList;
+			Elements[] newList2 = new Elements[productionList.length * 2];
+			System.arraycopy(productionList, 0, newList2, 0, productionList.length);
+			productionList = newList2;
 		}
-		nonterminalNameList[nonterminalId] = nonterminalName;
-		return nonterminalId++;
+		productionNameList[productionId] = nonterminalName;
+		return productionId++;
 	}
 
-	public void reshapeFormat() {
-		for (int i = 0; i < nonterminalId; i++) {
-			nonterminalList[i].elements = reshapeElements(nonterminalList[i].elements);
+	public void reshapeStandardform() {
+		for (int i = 0; i < productionId; i++) {
+			productionList[i] = reshapeElements(productionList[i]);
 		}
 	}
 
 	public Elements reshapeElements(Elements elements) {
 		if (elements.hasCapturedElement()) {
 			elementsStack[stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			CapturedElement captured = null;
 			for (int i = 0; i < elements.size; i++) {
 				if (elements.get(i) instanceof CapturedElement) {
 					elementsStack[++stackTop] = new Elements();
+					stackStates[stackTop] = new StackState();
 					captured = (CapturedElement) elements.get(i);
 				} else {
 					elementsStack[stackTop].addElement(elements.get(i));
@@ -145,16 +150,20 @@ public class FormatGenerator {
 		return elements;
 	}
 
-	public void makeFormatSet() {
+	public void reshapeCaptured() {
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
 				break;
 			}
-			capturedList[i].setFormat(i);
+			capturedList[i].makeFormatSet(i);
+			for (int j = 0; j < checkedTag.size; j++) {
+				((TagElement) checkedTag.get(j)).unused = true;
+			}
+			checkedTag = new Elements();
 		}
 	}
 
-	public void writeFormat() {
+	public void writeBxnez() {
 		checkedNullLabelTag = new boolean[tagId];
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
@@ -162,6 +171,7 @@ public class FormatGenerator {
 			}
 			capturedList[i].writeFormat(i);
 		}
+		writeln("");
 	}
 
 	private FormatVisitor formatVisitor = new FormatVisitor();
@@ -179,7 +189,7 @@ public class FormatGenerator {
 		@Override
 		public Object visitNonTerminal(NonTerminal e, Object a) {
 			Element nonterminal = new NonTerminalElement(convertNonterminalName(e.getLocalName()));
-			if (inFirst) {
+			if (inCapture(e.getLocalName())) {
 				currentLeft = nonterminal;
 			}
 			addElement(nonterminal);
@@ -188,13 +198,11 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitEmpty(Empty e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
 		@Override
 		public Object visitFail(Fail e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
@@ -218,7 +226,6 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitAny(Any e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
@@ -233,16 +240,13 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitPair(Pair e, Object a) {
-			inFirst = true;
 			visit(e.first);
-			inFirst = false;
 			visit(e.next);
 			return null;
 		}
 
 		@Override
 		public Object visitSequence(Sequence e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
@@ -253,16 +257,18 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			for (int i = 0; i < e.size(); i++) {
 				elementsStack[++stackTop] = new Elements();
+				stackStates[stackTop] = new StackState();
 				visit(e.get(i));
 				branch[i] = elementsStack[stackTop--];
 			}
 			Element choice = new ChoiceElement(branch);
-			if (inFirst) {
-				currentLeft = choice;
-			}
+			currentLeft = choice;
 			addElement(choice);
 			return null;
 		}
@@ -273,15 +279,20 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
-			elementsStack[stackTop].inOptional = true;
+			stackStates[stackTop] = new StackState();
+			stackStates[stackTop].inOptional = true;
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].hasLF) {
+			if (stackStates[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(stackStates[stackTop + 1].left);
 				Elements[] branch = { null, new Elements() };
 				branch[0] = elementsStack[stackTop + 1];
-				branch[1].addElement(elementsStack[stackTop].get(elementsStack[stackTop].size));
+				branch[1].addElement(stackStates[stackTop + 1].left);
 				addElement(new ChoiceElement(branch));
 			} else {
 				addElement(new OptionElement(elementsStack[stackTop + 1]));
@@ -295,14 +306,19 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].hasLF) {
+			if (stackStates[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(stackStates[stackTop + 1].left);
 				Elements[] branch = { null, new Elements() };
 				branch[0] = elementsStack[stackTop + 1];
-				branch[1].addElement(elementsStack[stackTop].get(elementsStack[stackTop].size));
+				branch[1].addElement(stackStates[stackTop + 1].left);
 				addElement(new ChoiceElement(branch));
 			} else {
 				addElement(new ZeroElement(elementsStack[stackTop + 1]));
@@ -316,11 +332,16 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			visit(e.get(0));
 			stackTop--;
-			if (elementsStack[stackTop + 1].hasLF) {
+			if (stackStates[stackTop + 1].left != null) {
+				elementsStack[stackTop].remove(stackStates[stackTop + 1].left);
 				addElement(elementsStack[stackTop + 1].get(0));
 			} else {
 				addElement(new OneElement(elementsStack[stackTop + 1]));
@@ -330,13 +351,11 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitAnd(And e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
 		@Override
 		public Object visitNot(Not e, Object a) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
@@ -346,23 +365,29 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			return null;
 		}
 
 		@Override
 		public Object visitFoldTree(FoldTree e, Object a) {
-			elementsStack[stackTop].hasLF = true;
+			stackStates[stackTop].left = currentLeft;
 			if (stackTop + 1 == elementsStack.length) {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
-			addElement(new LinkedElement(e.label, new Elements(getLeft(stackTop - 2))
-			// new Elements(currentLeft)
-			));
+			stackStates[stackTop] = new StackState();
+			addElement(new LinkedElement(e.label, new Elements(currentLeft)));
 			return null;
 		}
 
@@ -372,8 +397,12 @@ public class FormatGenerator {
 				Elements[] newList = new Elements[elementsStack.length * 2];
 				System.arraycopy(elementsStack, 0, newList, 0, elementsStack.length);
 				elementsStack = newList;
+				StackState[] newList2 = new StackState[stackStates.length * 2];
+				System.arraycopy(stackStates, 0, newList2, 0, stackStates.length);
+				stackStates = newList2;
 			}
 			elementsStack[++stackTop] = new Elements();
+			stackStates[stackTop] = new StackState();
 			visit(e.get(0));
 			stackTop--;
 			addElement(new LinkedElement(e.label, elementsStack[stackTop + 1]));
@@ -413,16 +442,14 @@ public class FormatGenerator {
 				capturedList = newList;
 			}
 			capturedList[capturedId] = new Captured(elementsStack[stackTop--]);
-			if (elementsStack[stackTop].hasLF && !elementsStack[stackTop].inOptional) {
-				Elements[] branch = { new Elements(), null };
+			if (stackStates[stackTop].left != null && !stackStates[stackTop].inOptional) {
+				Elements[] branch = { new Elements(), new Elements() };
 				branch[0].addElement(new CapturedElement(capturedId));
-				branch[1] = ((LinkedElement) capturedList[capturedId].elements.get(0)).inner;
+				branch[1].addElement(stackStates[stackTop].left);
 				((LinkedElement) capturedList[capturedId].elements.get(0)).inner = new Elements(new ChoiceElement(branch));
 			}
 			Element captured = new CapturedElement(capturedId++);
-			if (inFirst) {
-				currentLeft = captured;
-			}
+			currentLeft = captured;
 			addElement(captured);
 			return null;
 		}
@@ -477,7 +504,7 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitOn(OnCondition e, Object a) {
-			// TODO Auto-generated method stub
+			visit(e.inner);
 			return null;
 		}
 
@@ -501,13 +528,19 @@ public class FormatGenerator {
 
 	}
 
-	public Element getLeft(int stackTop) {
-		int size = elementsStack[stackTop].size;
-		if (size != 0) {
-			elementsStack[stackTop].size--;
-			return elementsStack[stackTop].elementList[size - 1];
+	// TODO modify me
+	public boolean inCapture(String name) {
+		byte cbyte = (byte) name.charAt(0);
+		if (cbyte == 34 || cbyte == 95 || (cbyte >= 97 && cbyte <= 122)) {
+			return false;
 		}
-		return getLeft(stackTop - 1);
+		for (int i = 0; i < name.length(); i++) {
+			cbyte = (byte) name.charAt(i);
+			if (cbyte < 65 || cbyte > 90) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void addElement(Element element) {
@@ -515,43 +548,33 @@ public class FormatGenerator {
 	}
 
 	class Captured {
-		String name;
 		Elements elements;
-		FormatSet[] formatSet = new FormatSet[4];
+		TagAndLinks[] formatSet = new TagAndLinks[4];
 		Elements left;
 		Elements right;
 		int size = 0;
 
 		public Captured(Elements elements) {
-			name = null;
 			this.elements = elements;
 		}
 
-		public Captured(Elements elements, String name) {
-			this(elements);
-			this.name = name;
-		}
-
-		public void setFormat(int capturedId) {
+		public void makeFormatSet(int capturedId) {
 			while (true) {
-				checkedNonterminal = new boolean[nonterminalId];
-				int tag = searchTag();
+				checkedProduction = new boolean[productionId];
+				int tag = elements.searchTag();
 				if (tag != -1) {
 					if (size == formatSet.length) {
-						FormatSet[] newList = new FormatSet[formatSet.length * 2];
+						TagAndLinks[] newList = new TagAndLinks[formatSet.length * 2];
 						System.arraycopy(formatSet, 0, newList, 0, formatSet.length);
 						formatSet = newList;
 					}
-					formatSet[size] = new FormatSet();
+					formatSet[size] = new TagAndLinks();
 					formatSet[size].tag = tag;
-					checkedNonterminal = new boolean[nonterminalId];
-					formatSet[size++].link = searchLink();
+					checkedProduction = new boolean[productionId];
+					formatSet[size++].link = elements.searchLink();
 				} else {
 					break;
 				}
-			}
-			if (size == 0) {
-				System.out.println("CAUTION:UNTAGGED BLOCK EXISTS");
 			}
 		}
 
@@ -561,6 +584,7 @@ public class FormatGenerator {
 				// if (formatSet[i].link != null ||
 				// !checkedNullLabelTag[formatSet[i].tag]) {
 				for (int labelProgression = 0, tagProgression = 0; true; tagProgression++) {
+					hasRepetition = false;
 					LabelSet labelSet = new LabelSet(labelProgression, tagProgression);
 					String label = optionFix(formatSet[i].link, labelSet, formatSet[i].tag);
 					if (labelSet.labelProgression > 0) {
@@ -575,12 +599,16 @@ public class FormatGenerator {
 						label = "";
 						checkedNullLabelTag[formatSet[i].tag] = true;
 					}
-					write("format " + tagList[formatSet[i].tag] + "(" + label + ")");
+					if (hasRepetition) {
+						write("format " + tagList[formatSet[i].tag] + "(n" + label + ":ns)");
+					} else {
+						write("format " + tagList[formatSet[i].tag] + "(" + label + ")");
+					}
 					writeln("`");
 					if (left != null) {
 						String format = left.toFormat(formatSet[i].tag);
 						if (format != null) {
-							write(format + " ");
+							write(format);
 						}
 					}
 					String format = toFormat(formatSet[i].tag);
@@ -592,7 +620,7 @@ public class FormatGenerator {
 					if (right != null) {
 						format = right.toFormat(formatSet[i].tag);
 						if (format != null) {
-							write(" " + format);
+							write(format);
 						}
 					}
 					write("`");
@@ -609,29 +637,22 @@ public class FormatGenerator {
 			}
 			for (int i = 0; i < links.size; i++) {
 				Element link = links.get(i);
+				if (link instanceof OneElement || link instanceof ZeroElement) {
+					hasRepetition = true;
+					break;
+				}
+			}
+			for (int i = 0; i < links.size; i++) {
+				Element link = links.get(i);
 				labelSet = link.optionFix(labelSet, tag);
 			}
 			return labelSet.label;
 		}
 
-		public int searchTag() {
-			return elements.searchTag();
-		}
-
-		public Elements searchLink() {
-			return elements.searchLink();
-		}
-
-		public LinkedInner[] checkInner() {
-			return elements.checkInner();
-		}
-
 		public String toFormat(int tag) {
 			String formats = elements.toFormat(tag);
-			if (this.name == null) {
-				if (formats == null || formats.indexOf("${") == -1) {
-					return null;
-				}
+			if (formats == null || formats.indexOf("${") == -1) {
+				return null;
 			}
 			return formats;
 		}
@@ -645,8 +666,6 @@ public class FormatGenerator {
 	class Elements {
 		Element[] elementList;
 		int size;
-		boolean hasLF = false;
-		boolean inOptional = false;
 
 		public Elements() {
 			elementList = new Element[4];
@@ -722,7 +741,7 @@ public class FormatGenerator {
 					if (formats == null) {
 						formats = format;
 					} else {
-						formats += " " + format;
+						formats += format;
 					}
 				}
 			}
@@ -759,6 +778,16 @@ public class FormatGenerator {
 		public void addElements(Elements elements) {
 			for (int i = 0; i < elements.size; i++) {
 				addElement(elements.elementList[i]);
+			}
+		}
+
+		public void remove(Element element) {
+			for (int i = 0; i < size; i++) {
+				if (elementList[i] == element) {
+					size--;
+					System.arraycopy(elementList, i + 1, elementList, i, size - i);
+					break;
+				}
 			}
 		}
 
@@ -819,7 +848,7 @@ public class FormatGenerator {
 
 	class NonTerminalElement extends Element {
 		int id;
-		Captured captured;
+		Elements elements;
 
 		public NonTerminalElement(int id) {
 			this.id = id;
@@ -828,47 +857,47 @@ public class FormatGenerator {
 		@Override
 		public Elements searchLink() {
 			nullCheck();
-			if (checkedNonterminal[id]) {
+			if (checkedProduction[id]) {
 				return null;
 			}
-			checkedNonterminal[id] = true;
-			return captured.searchLink();
+			checkedProduction[id] = true;
+			return elements.searchLink();
 		}
 
 		@Override
 		public int searchTag() {
 			nullCheck();
-			if (checkedNonterminal[id]) {
+			if (checkedProduction[id]) {
 				return -1;
 			}
-			checkedNonterminal[id] = true;
-			return captured.searchTag();
+			checkedProduction[id] = true;
+			return elements.searchTag();
 		}
 
 		@Override
 		public LinkedInner[] checkInner() {
 			nullCheck();
-			if (checkedNonterminal[id]) {
+			if (checkedProduction[id]) {
 				return null;
 			}
-			checkedNonterminal[id] = true;
-			return captured.checkInner();
+			checkedProduction[id] = true;
+			return elements.checkInner();
 		}
 
 		@Override
 		public String toFormat(int tag) {
 			nullCheck();
-			return captured.toFormat(tag);
+			return elements.toFormat(tag);
 		}
 
 		@Override
 		public String toString() {
-			return "[" + nonterminalNameList[id] + "]";
+			return "[" + productionNameList[id] + "]";
 		}
 
 		public void nullCheck() {
-			if (captured == null) {
-				this.captured = nonterminalList[id];
+			if (elements == null) {
+				this.elements = productionList[id];
 			}
 		}
 	}
@@ -911,10 +940,16 @@ public class FormatGenerator {
 		@Override
 		public Elements searchLink() {
 			if (linkedInner == null) {
-				boolean[] currentCheckedNonterminal = checkedNonterminal;
-				checkedNonterminal = new boolean[nonterminalId];
+				boolean[] currentCheckedNonterminal = checkedProduction;
+				checkedProduction = new boolean[productionId];
 				linkedInner = inner.checkInner();
-				checkedNonterminal = currentCheckedNonterminal;
+				if (linkedInner == null) {
+					System.out.println("CAUTION:UNTAGGED BLOCK EXISTS in " + this);
+					linkedInner = new LinkedInner[1];
+					linkedInner[0] = new LinkedInner();
+					linkedInner[0].id = -2;
+				}
+				checkedProduction = currentCheckedNonterminal;
 				size = linkedInner.length;
 				optimizeLinkedInner();
 			}
@@ -926,6 +961,10 @@ public class FormatGenerator {
 			LinkedInner[] newLinkedinner = new LinkedInner[size];
 			int newSize = 0;
 			for (int i = 0; i < size; i++) {
+				if (linkedInner[i].id == -2) {
+					groupSize = 1;
+					return;
+				}
 				if (linkedInner[i].id != -1 && !checked[linkedInner[i].id]) {
 					checked[linkedInner[i].id] = true;
 					newLinkedinner[newSize] = linkedInner[i];
@@ -962,10 +1001,14 @@ public class FormatGenerator {
 			labelSet.tagProgression = labelSet.tagProgression / groupSize;
 			boolean[] needTag = new boolean[tagId];
 			String ret = null;
-			if (capturedList[linkedInner[labelFix].id].size == 0) {
-				ret = toLabel() + ":#Tree";
+			if (linkedInner[labelFix].id == -2) {
+				if (hasRepetition) {
+					ret = " #Tree";
+				} else {
+					ret = toLabel() + " #Tree";
+				}
 			} else {
-				FormatSet[] formatSet = capturedList[linkedInner[labelFix].id].formatSet;
+				TagAndLinks[] formatSet = capturedList[linkedInner[labelFix].id].formatSet;
 				needTag[formatSet[0].tag] = true;
 				for (int i = 1; i < capturedList[linkedInner[labelFix].id].size; i++) {
 					needTag[formatSet[i].tag] = true;
@@ -981,7 +1024,11 @@ public class FormatGenerator {
 				for (int i = 0; i < tagId; i++) {
 					if (needTag[i]) {
 						if (ret == null) {
-							ret = toLabel() + ":" + tagList[i];
+							if (hasRepetition) {
+								ret = " " + tagList[i];
+							} else {
+								ret = toLabel() + " " + tagList[i];
+							}
 						} else {
 							ret += "|" + tagList[i];
 						}
@@ -1008,21 +1055,29 @@ public class FormatGenerator {
 		public String toFormat(int tag) {
 			String ret = "";
 
-			if (label == null) {
+			if (hasRepetition) {
 				if (!linkedInner[labelFix].before.equals("")) {
-					ret += linkedInner[labelFix].before + " ";
+					ret += linkedInner[labelFix].before;
+				}
+				ret += "${n}";
+				if (!linkedInner[labelFix].after.equals("")) {
+					ret += linkedInner[labelFix].after;
+				}
+			} else if (label == null) {
+				if (!linkedInner[labelFix].before.equals("")) {
+					ret += linkedInner[labelFix].before;
 				}
 				ret += "${$unlabeled}";
 				if (!linkedInner[labelFix].after.equals("")) {
-					ret += " " + linkedInner[labelFix].after;
+					ret += linkedInner[labelFix].after;
 				}
 			} else {
 				if (!linkedInner[labelFix].before.equals("")) {
-					ret += linkedInner[labelFix].before + " ";
+					ret += linkedInner[labelFix].before;
 				}
 				ret += "${" + label + "}";
 				if (!linkedInner[labelFix].after.equals("")) {
-					ret += " " + linkedInner[labelFix].after;
+					ret += linkedInner[labelFix].after;
 				}
 			}
 
@@ -1103,6 +1158,7 @@ public class FormatGenerator {
 		@Override
 		public int searchTag() {
 			if (unused) {
+				checkedTag.addElement(this);
 				unused = false;
 				return id;
 			}
@@ -1309,18 +1365,18 @@ public class FormatGenerator {
 					if (label == null) {
 						label = "";
 					}
-					delayWrite("format $repetition" + id + "(" + label + ")");
+					delayWrite("format rep" + id + "(n" + label + ":ns)");
 					delayWriteln("`");
 					String format = inner.toFormat(tag);
 					if (format != null) {
-						delayWrite(format + " ${$repetition" + id + "}`");
+						delayWrite(format + " ${rep" + id + "(ns)}`");
 					} else {
-						delayWrite("${$repetition" + id + "}`");
+						delayWrite("${rep" + id + "(ns)}`");
 					}
 					delayWriteln("");
 					delayWriteln("");
 				}
-				delayWrite("format $repetition" + id + "()");
+				delayWrite("format rep" + id + "()");
 				delayWriteln("``");
 				delayWriteln("");
 				delayWriteln("");
@@ -1352,9 +1408,9 @@ public class FormatGenerator {
 			}
 			String format = inner.toFormat(tag);
 			if (format != null) {
-				return format + " ${$repetition" + id + "}";
+				return format + " ${rep" + id + "(ns)}";
 			}
-			return "${$repetition" + id + "}";
+			return "${rep" + id + "(ns)}";
 		}
 
 		@Override
@@ -1422,17 +1478,17 @@ public class FormatGenerator {
 					if (label == null) {
 						label = "";
 					}
-					delayWrite("format $repetition" + id + "(" + label + ")");
+					delayWrite("format rep" + id + "(n" + label + ":ns)");
 					delayWriteln("`");
 					String format = inner.toFormat(tag);
 					if (format != null) {
-						delayWrite(inner.toFormat(tag) + " ${$repetition" + id + "}`");
+						delayWrite(inner.toFormat(tag) + " ${rep" + id + "(ns)}`");
 					} else {
-						delayWrite("${$repetition" + id + "}`");
+						delayWrite("${rep" + id + "(ns)}`");
 					}
 					delayWriteln("");
 				}
-				delayWrite("format $repetition" + id + "()");
+				delayWrite("format rep" + id + "()");
 				delayWriteln("``");
 				delayWriteln("");
 			}
@@ -1450,7 +1506,7 @@ public class FormatGenerator {
 		@Override
 		public int countOption(int tag) {
 			rate = 1;
-			if (links != null && tagFix[tag]) {
+			if (links != null) {
 				for (int j = 0; j < links.size; j++) {
 					rate *= links.get(j).countOption(tag);
 				}
@@ -1466,10 +1522,10 @@ public class FormatGenerator {
 			if (tagFix[tag]) {
 				String format = inner.toFormat(tag);
 				if (format != null) {
-					return format + " ${$repetition" + id + "}";
+					return format + " ${rep" + id + "(ns)}";
 				}
 			}
-			return "${$repetition" + id + "}";
+			return "${rep" + id + "(ns)}";
 		}
 
 		@Override
@@ -1528,6 +1584,13 @@ public class FormatGenerator {
 			if (currentBranch != rate - 1) {
 				labelSet.labelProgression = currentBranch;
 				for (int j = 0; j < link.size; j++) {
+					Element l = link.get(j);
+					if (l instanceof OneElement || l instanceof ZeroElement) {
+						hasRepetition = true;
+						break;
+					}
+				}
+				for (int j = 0; j < link.size; j++) {
 					labelSet = link.get(j).optionFix(labelSet, tag);
 				}
 				linkFix = true;
@@ -1570,6 +1633,11 @@ public class FormatGenerator {
 
 	}
 
+	class StackState {
+		Element left = null;
+		boolean inOptional = false;
+	}
+
 	class LabelSet {
 		String label;
 		int labelProgression;
@@ -1607,7 +1675,7 @@ public class FormatGenerator {
 		}
 	}
 
-	class FormatSet {
+	class TagAndLinks {
 		int tag;
 		Elements link;
 	}
