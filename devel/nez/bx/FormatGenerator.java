@@ -71,11 +71,17 @@ public class FormatGenerator {
 
 	public void generate(Grammar grammar) {
 		this.grammar = grammar;
-		this.openOutputFile();
-		this.makeStandardform();
-		this.reshapeStandardform();
-		this.reshapeCaptured();
-		this.writeBxnez();
+		try {
+			this.makeStandardform();
+			this.reshapeStandardform();
+			this.reshapeCaptured();
+			this.openOutputFile();
+			this.writeBxnez();
+		} catch (UnTagedException e) {
+			System.out.println(e);
+		} catch (UnLabeledException e) {
+			System.out.println(e);
+		}
 	}
 
 	public void openOutputFile() {
@@ -150,7 +156,7 @@ public class FormatGenerator {
 		return elements;
 	}
 
-	public void reshapeCaptured() {
+	public void reshapeCaptured() throws UnTagedException {
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
 				break;
@@ -163,7 +169,7 @@ public class FormatGenerator {
 		}
 	}
 
-	public void writeBxnez() {
+	public void writeBxnez() throws UnLabeledException {
 		checkedNullLabelTag = new boolean[tagId];
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
@@ -558,7 +564,7 @@ public class FormatGenerator {
 			this.elements = elements;
 		}
 
-		public void makeFormatSet(int capturedId) {
+		public void makeFormatSet(int capturedId) throws UnTagedException {
 			while (true) {
 				checkedProduction = new boolean[productionId];
 				int tag = elements.searchTag();
@@ -579,7 +585,7 @@ public class FormatGenerator {
 		}
 
 		// TODO fix verbose
-		public void writeFormat(int capturedId) {
+		public void writeFormat(int capturedId) throws UnLabeledException {
 			for (int i = 0; i < size; i++) {
 				// if (formatSet[i].link != null ||
 				// !checkedNullLabelTag[formatSet[i].tag]) {
@@ -631,7 +637,7 @@ public class FormatGenerator {
 			}
 		}
 
-		public String optionFix(Elements links, LabelSet labelSet, int tag) {
+		public String optionFix(Elements links, LabelSet labelSet, int tag) throws UnLabeledException {
 			if (links == null) {
 				return null;
 			}
@@ -649,7 +655,7 @@ public class FormatGenerator {
 			return labelSet.label;
 		}
 
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			String formats = elements.toFormat(tag);
 			if (formats == null || formats.indexOf("${") == -1) {
 				return null;
@@ -692,7 +698,7 @@ public class FormatGenerator {
 			return -1;
 		}
 
-		public Elements searchLink() {
+		public Elements searchLink() throws UnTagedException {
 			Elements links = null;
 			for (int i = 0; i < this.size; i++) {
 				Elements link = elementList[i].searchLink();
@@ -732,7 +738,7 @@ public class FormatGenerator {
 			return inners;
 		}
 
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			String formats = null;
 			for (int i = 0; i < this.size; i++) {
 				Element element = elementList[i];
@@ -813,7 +819,7 @@ public class FormatGenerator {
 			return -1;
 		}
 
-		public Elements searchLink() {
+		public Elements searchLink() throws UnTagedException {
 			return null;
 		}
 
@@ -821,7 +827,7 @@ public class FormatGenerator {
 			return null;
 		}
 
-		public LabelSet optionFix(LabelSet labelSet, int tag) {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
 			assert true;
 			return null;
 		}
@@ -834,7 +840,7 @@ public class FormatGenerator {
 			return null;
 		}
 
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			return null;
 		}
 
@@ -855,7 +861,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() {
+		public Elements searchLink() throws UnTagedException {
 			nullCheck();
 			if (checkedProduction[id]) {
 				return null;
@@ -885,7 +891,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			nullCheck();
 			return elements.toFormat(tag);
 		}
@@ -938,16 +944,18 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() {
+		public Elements searchLink() throws UnTagedException {
 			if (linkedInner == null) {
 				boolean[] currentCheckedNonterminal = checkedProduction;
 				checkedProduction = new boolean[productionId];
 				linkedInner = inner.checkInner();
 				if (linkedInner == null) {
-					System.out.println("CAUTION:UNTAGGED BLOCK EXISTS in " + this);
-					linkedInner = new LinkedInner[1];
-					linkedInner[0] = new LinkedInner();
-					linkedInner[0].id = -2;
+					throw new UnTagedException("UNTAGGED BLOCK EXISTS in " + this);
+					// System.out.println("CAUTION:UNTAGGED BLOCK EXISTS in " +
+					// this);
+					// linkedInner = new LinkedInner[1];
+					// linkedInner[0] = new LinkedInner();
+					// linkedInner[0].id = -2;
 				}
 				checkedProduction = currentCheckedNonterminal;
 				size = linkedInner.length;
@@ -996,7 +1004,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
 			labelFix = mainId[labelSet.tagProgression % groupSize];
 			labelSet.tagProgression = labelSet.tagProgression / groupSize;
 			boolean[] needTag = new boolean[tagId];
@@ -1043,16 +1051,17 @@ public class FormatGenerator {
 			return labelSet;
 		}
 
-		public String toLabel() {
+		public String toLabel() throws UnLabeledException {
 			if (label == null) {
-				return "$unlabeled";
+				throw new UnLabeledException("UNLABELED LINKTREE EXISTS " + this);
+				// return "$unlabeled";
 			} else {
 				return label.toString();
 			}
 		}
 
 		@Override
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			String ret = "";
 
 			if (hasRepetition) {
@@ -1064,13 +1073,14 @@ public class FormatGenerator {
 					ret += linkedInner[labelFix].after;
 				}
 			} else if (label == null) {
-				if (!linkedInner[labelFix].before.equals("")) {
-					ret += linkedInner[labelFix].before;
-				}
-				ret += "${$unlabeled}";
-				if (!linkedInner[labelFix].after.equals("")) {
-					ret += linkedInner[labelFix].after;
-				}
+				throw new UnLabeledException("UNLABELED LINKTREE EXISTS " + this);
+				// if (!linkedInner[labelFix].before.equals("")) {
+				// ret += linkedInner[labelFix].before;
+				// }
+				// ret += "${$unlabeled}";
+				// if (!linkedInner[labelFix].after.equals("")) {
+				// ret += linkedInner[labelFix].after;
+				// }
 			} else {
 				if (!linkedInner[labelFix].before.equals("")) {
 					ret += linkedInner[labelFix].before;
@@ -1204,7 +1214,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() {
+		public Elements searchLink() throws UnTagedException {
 			if (currentTagFixBranch == -1) {
 				for (int i = 0; i < branch.length; i++) {
 					Elements choicedLink = branch[i].searchLink();
@@ -1243,7 +1253,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
 			if (linkRate == null) {
 				countOption(tag);
 			}
@@ -1290,7 +1300,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			if (tagFixBranch == null) {
 				return branch[0].toFormat(tag);
 			}
@@ -1331,7 +1341,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() {
+		public Elements searchLink() throws UnTagedException {
 			Elements oneLink = inner.searchLink();
 			if (oneLink == null) {
 				return null;
@@ -1341,7 +1351,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
 			if (rate == 0) {
 				countOption(tag);
 			}
@@ -1402,7 +1412,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			if (id == -1) {
 				return inner.toFormat(tag);
 			}
@@ -1444,7 +1454,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() {
+		public Elements searchLink() throws UnTagedException {
 			Elements zeroLink = inner.searchLink();
 			if (zeroLink == null) {
 				return null;
@@ -1454,7 +1464,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
 			if (rate == 0) {
 				countOption(tag);
 			}
@@ -1515,7 +1525,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			if (id == -1) {
 				return null;
 			}
@@ -1562,7 +1572,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() {
+		public Elements searchLink() throws UnTagedException {
 			Elements optionalLink = inner.searchLink();
 			if (hasTag) {
 				return optionalLink;
@@ -1575,7 +1585,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
 			if (rate == 0) {
 				countOption(tag);
 			}
@@ -1613,7 +1623,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public String toFormat(int tag) {
+		public String toFormat(int tag) throws UnLabeledException {
 			if (tagFix == null) {
 				return null;
 			}
