@@ -613,7 +613,7 @@ public class FormatGenerator {
 					}
 					String format = toFormat(formatSet[i].tag);
 					if (format == null) {
-						write("${$toText}");
+						write("${$value}");
 					} else {
 						write(format);
 					}
