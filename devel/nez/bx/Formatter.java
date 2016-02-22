@@ -147,6 +147,14 @@ public class Formatter extends AbstractFormatter {
 				} else {
 					throw new RuntimeException("label \"" + name + "\" is not found");
 				}
+			} else if (param instanceof TagParam) {
+				String name = ((TagParam) param).name;
+				Tree<?> paramNode = node.get(Symbol.unique(name));
+				if (paramNode != null) {
+					this.context.scope.setVariable(name, node.get(Symbol.unique(name)));
+				} else {
+					throw new RuntimeException("label \"" + name + "\" is not found");
+				}
 			} else if (param instanceof ListParam) {
 				ListParam listParam = (ListParam) param;
 				argNode = node;
