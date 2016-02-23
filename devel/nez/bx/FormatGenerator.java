@@ -63,6 +63,9 @@ public class FormatGenerator {
 	private boolean[] checkedNullLabelTag;
 	private int repetitionId = 0;
 	private boolean hasRepetition;
+	private boolean hasOnly;
+	private boolean hasOption;
+	private boolean needAddZero;
 
 	public FormatGenerator(String dir, String outputFile) {
 		this.outputFile = outputFile;
@@ -591,10 +594,14 @@ public class FormatGenerator {
 		// TODO fix verbose
 		public void writeFormat(int capturedId) throws UnLabeledException {
 			for (int i = 0; i < size; i++) {
+				boolean needFormatEmpty = false;
 				// if (formatSet[i].link != null ||
 				// !checkedNullLabelTag[formatSet[i].tag]) {
 				for (int labelProgression = 0, tagProgression = 0; true; tagProgression++) {
 					hasRepetition = false;
+					hasOnly = true;
+					hasOption = false;
+					needAddZero = false;
 					LabelSet labelSet = new LabelSet(labelProgression, tagProgression);
 					String label = optionFix(formatSet[i].link, labelSet, formatSet[i].tag);
 					if (labelSet.labelProgression > 0) {
@@ -608,6 +615,10 @@ public class FormatGenerator {
 					if (label == null) {
 						label = "";
 						checkedNullLabelTag[formatSet[i].tag] = true;
+						if (hasRepetition) {
+							needFormatEmpty = true;
+							continue;
+						}
 					}
 					if (hasRepetition) {
 						write("format " + tagList[formatSet[i].tag] + "(n" + label + ":ns)");
@@ -635,6 +646,14 @@ public class FormatGenerator {
 					}
 					write("`");
 					writeln("");
+					if (needAddZero && !hasOption) {
+						needFormatEmpty = true;
+					}
+				}
+				if (needFormatEmpty) {
+					write("format " + tagList[formatSet[i].tag] + "([])");
+					writeln("`${$value}`");
+					writeln("");
 				}
 				activateDelay();
 				// }
@@ -644,6 +663,9 @@ public class FormatGenerator {
 		public String optionFix(Elements links, LabelSet labelSet, int tag) throws UnLabeledException {
 			if (links == null) {
 				return null;
+			}
+			if (links.size != 1) {
+				hasOnly = false;
 			}
 			for (int i = 0; i < links.size; i++) {
 				Element link = links.get(i);
@@ -1013,37 +1035,29 @@ public class FormatGenerator {
 			labelSet.tagProgression = labelSet.tagProgression / groupSize;
 			boolean[] needTag = new boolean[tagId];
 			String ret = null;
-			if (linkedInner[labelFix].id == -2) {
-				if (hasRepetition) {
-					ret = " #Tree";
-				} else {
-					ret = toLabel() + " #Tree";
-				}
-			} else {
-				TagAndLinks[] formatSet = capturedList[linkedInner[labelFix].id].formatSet;
-				needTag[formatSet[0].tag] = true;
-				for (int i = 1; i < capturedList[linkedInner[labelFix].id].size; i++) {
-					needTag[formatSet[i].tag] = true;
-				}
-				for (int i = 0; i < size; i++) {
-					if (groupId[i] == labelFix && i != labelFix) {
-						formatSet = capturedList[linkedInner[i].id].formatSet;
-						for (int j = 0; j < capturedList[linkedInner[i].id].size; j++) {
-							needTag[formatSet[j].tag] = true;
-						}
+			TagAndLinks[] formatSet = capturedList[linkedInner[labelFix].id].formatSet;
+			needTag[formatSet[0].tag] = true;
+			for (int i = 1; i < capturedList[linkedInner[labelFix].id].size; i++) {
+				needTag[formatSet[i].tag] = true;
+			}
+			for (int i = 0; i < size; i++) {
+				if (groupId[i] == labelFix && i != labelFix) {
+					formatSet = capturedList[linkedInner[i].id].formatSet;
+					for (int j = 0; j < capturedList[linkedInner[i].id].size; j++) {
+						needTag[formatSet[j].tag] = true;
 					}
 				}
-				for (int i = 0; i < tagId; i++) {
-					if (needTag[i]) {
-						if (ret == null) {
-							if (hasRepetition) {
-								ret = " " + tagList[i];
-							} else {
-								ret = toLabel() + " " + tagList[i];
-							}
+			}
+			for (int i = 0; i < tagId; i++) {
+				if (needTag[i]) {
+					if (ret == null) {
+						if (hasRepetition) {
+							ret = " " + tagList[i];
 						} else {
-							ret += "|" + tagList[i];
+							ret = toLabel() + " " + tagList[i];
 						}
+					} else {
+						ret += "|" + tagList[i];
 					}
 				}
 			}
@@ -1258,6 +1272,7 @@ public class FormatGenerator {
 
 		@Override
 		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+			boolean currentHasOnly = hasOnly;
 			if (linkRate == null) {
 				countOption(tag);
 			}
@@ -1269,6 +1284,9 @@ public class FormatGenerator {
 					break;
 				}
 				if (labelSet.labelProgression < linkRate[i]) {
+					if (link[i].size != 1) {
+						hasOnly = false;
+					}
 					for (int j = 0; j < link[i].size; j++) {
 						labelSet = link[i].get(j).optionFix(labelSet, tag);
 					}
@@ -1277,6 +1295,7 @@ public class FormatGenerator {
 				} else {
 					labelSet.labelProgression -= linkRate[i];
 				}
+				hasOnly = currentHasOnly;
 			}
 			labelSet.labelProgression = generalProgression;
 			return labelSet;
@@ -1356,6 +1375,9 @@ public class FormatGenerator {
 
 		@Override
 		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+			if (links.size != 1) {
+				hasOnly = false;
+			}
 			if (rate == 0) {
 				countOption(tag);
 			}
@@ -1377,7 +1399,7 @@ public class FormatGenerator {
 						continue;
 					}
 					if (label == null) {
-						label = "";
+						continue;
 					}
 					delayWrite("format rep" + id + "(n" + label + ":ns)");
 					delayWriteln("`");
@@ -1388,11 +1410,9 @@ public class FormatGenerator {
 						delayWrite("${rep" + id + "(ns)}`");
 					}
 					delayWriteln("");
-					delayWriteln("");
 				}
 				delayWrite("format rep" + id + "([])");
 				delayWriteln("``");
-				delayWriteln("");
 				delayWriteln("");
 			}
 			int generalProgression = labelSet.labelProgression / rate;
@@ -1469,6 +1489,9 @@ public class FormatGenerator {
 
 		@Override
 		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+			if (links.size != 1) {
+				hasOnly = false;
+			}
 			if (rate == 0) {
 				countOption(tag);
 			}
@@ -1490,7 +1513,7 @@ public class FormatGenerator {
 						continue;
 					}
 					if (label == null) {
-						label = "";
+						continue;
 					}
 					delayWrite("format rep" + id + "(n" + label + ":ns)");
 					delayWriteln("`");
@@ -1506,13 +1529,16 @@ public class FormatGenerator {
 				delayWriteln("``");
 				delayWriteln("");
 			}
-			if (tagFix[tag]) {
+			if (tagFix[tag] || hasOnly) {
 				int generalProgression = labelSet.labelProgression / rate;
 				labelSet.labelProgression = labelSet.labelProgression % rate;
 				for (int i = 0; i < links.size; i++) {
 					labelSet = links.get(i).optionFix(labelSet, tag);
 				}
 				labelSet.labelProgression = generalProgression;
+				if (hasOnly) {
+					needAddZero = true;
+				}
 			}
 			return labelSet;
 		}
@@ -1533,7 +1559,7 @@ public class FormatGenerator {
 			if (id == -1) {
 				return null;
 			}
-			if (tagFix[tag]) {
+			if (tagFix[tag] || hasOnly) {
 				String format = inner.toFormat(tag);
 				if (format != null) {
 					return format + " ${rep" + id + "(ns)}";
@@ -1590,6 +1616,10 @@ public class FormatGenerator {
 
 		@Override
 		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+			if (link.size != 1) {
+				hasOnly = false;
+			}
+			hasOption = true;
 			if (rate == 0) {
 				countOption(tag);
 			}
