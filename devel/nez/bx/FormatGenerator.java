@@ -66,6 +66,7 @@ public class FormatGenerator {
 	private boolean hasOnly;
 	private boolean hasOption;
 	private boolean needAddZero;
+	private int calledById;
 
 	public FormatGenerator(String dir, String outputFile) {
 		this.outputFile = outputFile;
@@ -100,11 +101,11 @@ public class FormatGenerator {
 	public void makeStandardform() {
 		for (Production rule : grammar) {
 			String nonterminalName = rule.getLocalName();
-			int nonterminalId = convertNonterminalName(nonterminalName);
+			calledById = convertNonterminalName(nonterminalName);
 			elementsStack[stackTop] = new Elements();
 			stackStates[stackTop] = new StackState();
 			makeProductionFormat(rule);
-			productionList[nonterminalId] = elementsStack[stackTop];
+			productionList[calledById] = elementsStack[stackTop];
 		}
 	}
 
@@ -396,7 +397,7 @@ public class FormatGenerator {
 			}
 			elementsStack[++stackTop] = new Elements();
 			stackStates[stackTop] = new StackState();
-			addElement(new LinkedElement(e.label, new Elements(currentLeft)));
+			addElement(new LinkedElement(e.label, new Elements(currentLeft), calledById));
 			return null;
 		}
 
@@ -414,7 +415,7 @@ public class FormatGenerator {
 			stackStates[stackTop] = new StackState();
 			visit(e.get(0));
 			stackTop--;
-			addElement(new LinkedElement(e.label, elementsStack[stackTop + 1]));
+			addElement(new LinkedElement(e.label, elementsStack[stackTop + 1], calledById));
 			return null;
 		}
 
@@ -959,10 +960,12 @@ public class FormatGenerator {
 		int size;
 		int groupSize = 0;
 		int labelFix;
+		int calledBy;
 
-		public LinkedElement(Symbol label, Elements inner) {
+		public LinkedElement(Symbol label, Elements inner, int calledBy) {
 			this.label = label;
 			this.inner = inner;
+			this.calledBy = calledBy;
 		}
 
 		@Override
@@ -972,7 +975,7 @@ public class FormatGenerator {
 				checkedProduction = new boolean[productionId];
 				linkedInner = inner.checkInner();
 				if (linkedInner == null) {
-					throw new UnTagedException("UNTAGGED BLOCK EXISTS in " + this);
+					throw new UnTagedException("UNTAGGED BLOCK EXISTS IN THIS PRODUCTION" + inner);
 					// System.out.println("CAUTION:UNTAGGED BLOCK EXISTS in " +
 					// this);
 					// linkedInner = new LinkedInner[1];
@@ -1067,7 +1070,7 @@ public class FormatGenerator {
 
 		public String toLabel() throws UnLabeledException {
 			if (label == null) {
-				throw new UnLabeledException("UNLABELED LINKTREE EXISTS " + this);
+				throw new UnLabeledException("UNLABELED LINKTREE EXISTS " + productionNameList[calledBy]);
 				// return "$unlabeled";
 			} else {
 				return label.toString();
@@ -1087,7 +1090,7 @@ public class FormatGenerator {
 					ret += linkedInner[labelFix].after;
 				}
 			} else if (label == null) {
-				throw new UnLabeledException("UNLABELED LINKTREE EXISTS " + this);
+				throw new UnLabeledException("UNLABELED LINKTREE EXISTS " + productionNameList[calledBy]);
 				// if (!linkedInner[labelFix].before.equals("")) {
 				// ret += linkedInner[labelFix].before;
 				// }
