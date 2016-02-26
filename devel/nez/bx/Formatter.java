@@ -34,11 +34,17 @@ public class Formatter extends AbstractFormatter {
 					if (!checkTagParam(tagParam, node)) {
 						return false;
 					}
+				} else if (param instanceof ListParam) {
+					ListParam listParam = (ListParam) param;
+					if (!checkListParam(listParam, node)) {
+						return false;
+					}
 				}
 			}
 			return true;
 		} else if (formatter.params.get(0) instanceof ListParam) {
-			if (node.size() != 0) {
+			ListParam listParam = (ListParam) formatter.params.get(0);
+			if (checkListParam(listParam, node)) {
 				return true;
 			}
 		} else if (formatter.params.size() == 0) {
@@ -71,7 +77,7 @@ public class Formatter extends AbstractFormatter {
 				}
 			}
 		}
-		throw new RuntimeException("UserDefinedFormatter \"" + name + "\" is not found");
+		throw new RuntimeException("UserDefinedFormatter \"" + name + "\" is not found \nnode:\n" + node);
 	}
 
 	public boolean matchUserDefinedFormatter(UserDefinedFormat formatter, Tree<?> node, List<Format> args) {
@@ -281,6 +287,10 @@ public class Formatter extends AbstractFormatter {
 		if (formatter instanceof Name) {
 			Name nameArg = (Name) formatter;
 			return this.context.scope.getVariable(nameArg.name);
+		}
+		if (formatter instanceof TagParam) {
+			TagParam tagParam = (TagParam) formatter;
+			return this.context.scope.getVariable(tagParam.name);
 		}
 		if (formatter instanceof SystemVariable) {
 			SystemVariable sysVar = (SystemVariable) formatter;
