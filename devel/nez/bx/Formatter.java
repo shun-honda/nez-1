@@ -42,7 +42,7 @@ public class Formatter extends AbstractFormatter {
 				}
 			}
 			return true;
-		} else if (formatter.params.get(0) instanceof ListParam) {
+		} else if (formatter.params.size() != 0 && formatter.params.get(0) instanceof ListParam) {
 			ListParam listParam = (ListParam) formatter.params.get(0);
 			if (checkListParam(listParam, node)) {
 				return true;
@@ -54,7 +54,7 @@ public class Formatter extends AbstractFormatter {
 	}
 
 	public boolean checkTagParam(TagParam param, Tree<?> node) {
-		Tree<?> targetNode = node.get(Symbol.unique(param.name));
+		Tree<?> targetNode = node.get(Symbol.unique(param.name), null);
 		if (targetNode != null) {
 			Symbol symbol = targetNode.getTag();
 			for (Symbol tag : param.tags) {
@@ -64,7 +64,9 @@ public class Formatter extends AbstractFormatter {
 			}
 			return false;
 		}
-		throw new RuntimeException("label \"" + param.name + "\" is not found");
+		return false;
+		// throw new RuntimeException("label \"" + param.name + "\" is not
+		// found");
 	}
 
 	public UserDefinedFormat findUserDefinedFormat(String name, List<Format> args, Tree<?> node) {
