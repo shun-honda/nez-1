@@ -67,6 +67,7 @@ public class FormatGenerator {
 	private boolean hasOption;
 	private boolean needAddZero;
 	private int calledById;
+	private boolean inNot;
 
 	public FormatGenerator(String dir, String outputFile) {
 		this.outputFile = outputFile;
@@ -166,7 +167,7 @@ public class FormatGenerator {
 		return elements;
 	}
 
-	public void reshapeCaptured() throws UnTaggedException {
+	public void reshapeCaptured() throws UnTaggedException, UnIndividedListException {
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
 				break;
@@ -579,7 +580,7 @@ public class FormatGenerator {
 			this.calledBy = calledBy;
 		}
 
-		public void makeFormatSet(int capturedId) throws UnTaggedException {
+		public void makeFormatSet(int capturedId) throws UnTaggedException, UnIndividedListException {
 			while (true) {
 				checkedProduction = new boolean[productionId];
 				int tag = elements.searchTag();
@@ -592,7 +593,20 @@ public class FormatGenerator {
 					formatSet[size] = new TagAndLinks();
 					formatSet[size].tag = tag;
 					checkedProduction = new boolean[productionId];
-					formatSet[size++].link = elements.searchLink();
+					formatSet[size].link = elements.searchLink();
+					if (formatSet[size].link != null) {
+						boolean second = false;
+						for (int i = 0; i < formatSet[size].link.size; i++) {
+							Element link = formatSet[size].link.get(i);
+							if (link instanceof OneElement || link instanceof ZeroElement) {
+								if (second) {
+									throw new UnIndividedListException("UNINDIVIDED LIST EXISTS IN " + productionNameList[calledBy]);
+								}
+								second = true;
+							}
+						}
+					}
+					size++;
 				} else {
 					if (formatSet[0] == null) {
 						throw new UnTaggedException("UNTAGGED BLOCK EXISTS IN " + productionNameList[calledBy]);
@@ -643,9 +657,13 @@ public class FormatGenerator {
 							write(format);
 						}
 					}
+					inNot = false;
 					String format = toFormat(formatSet[i].tag);
 					if (format == null) {
 						write("${$value}");
+						if (inNot) {
+							write(" ");
+						}
 					} else {
 						write(format);
 					}
@@ -906,6 +924,7 @@ public class FormatGenerator {
 
 		@Override
 		public String toFormat(int tag) {
+			inNot = true;
 			return " ";
 		}
 
@@ -1114,7 +1133,7 @@ public class FormatGenerator {
 
 		public String toLabel() throws UnLabeledException {
 			if (label == null) {
-				throw new UnLabeledException("UNLABELED LINKTREE EXISTS IN" + productionNameList[calledBy]);
+				throw new UnLabeledException("UNLABELED LINKTREE EXISTS IN " + productionNameList[calledBy]);
 				// return "$unlabeled";
 			} else {
 				return label.toString();
@@ -1250,7 +1269,7 @@ public class FormatGenerator {
 		int currentTagFixBranch;
 		int[] tagFixBranch;
 		int linkFixBranch = -1;
-		boolean hasNullBranch = false;
+		int nullBranch = -1;
 
 		public ChoiceElement(Elements[] branch) {
 			this.branch = branch;
@@ -1323,12 +1342,19 @@ public class FormatGenerator {
 			labelSet.labelProgression = labelSet.labelProgression % rate;
 			for (int i = 0; i <= linkRate.length; i++) {
 				if (i == linkRate.length) {
-					linkFixBranch = -1;
+					linkFixBranch = nullBranch;
 					break;
 				}
 				if (labelSet.labelProgression < linkRate[i]) {
 					if (link[i].size != 1) {
 						hasOnly = false;
+					}
+					for (int j = 0; j < link[i].size; j++) {
+						Element l = link[i].get(j);
+						if (l instanceof OneElement || l instanceof ZeroElement) {
+							hasRepetition = true;
+							break;
+						}
 					}
 					for (int j = 0; j < link[i].size; j++) {
 						labelSet = link[i].get(j).optionFix(labelSet, tag);
@@ -1354,12 +1380,12 @@ public class FormatGenerator {
 					for (int j = 0; j < link[i].size; j++) {
 						linkRate[i] *= link[i].get(j).countOption(tag);
 					}
-				} else {
-					hasNullBranch = true;
+				} else if (nullBranch != -1) {
+					nullBranch = i;
 				}
 				rate += linkRate[i];
 			}
-			if (hasNullBranch) {
+			if (nullBranch != -1) {
 				rate++;
 			}
 			return rate;
