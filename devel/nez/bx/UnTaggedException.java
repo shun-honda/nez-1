@@ -1,8 +1,8 @@
 package nez.bx;
 
-public class UnTagedException extends Exception {
+public class UnTaggedException extends Exception {
 
-	public UnTagedException(String e) {
+	public UnTaggedException(String e) {
 		super(e);
 	}
 }

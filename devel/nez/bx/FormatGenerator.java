@@ -81,9 +81,11 @@ public class FormatGenerator {
 			this.reshapeCaptured();
 			this.openOutputFile();
 			this.writeBxnez();
-		} catch (UnTagedException e) {
+		} catch (UnTaggedException e) {
 			System.out.println(e);
 		} catch (UnLabeledException e) {
+			System.out.println(e);
+		} catch (UnIndividedListException e) {
 			System.out.println(e);
 		}
 	}
@@ -164,7 +166,7 @@ public class FormatGenerator {
 		return elements;
 	}
 
-	public void reshapeCaptured() throws UnTagedException {
+	public void reshapeCaptured() throws UnTaggedException {
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
 				break;
@@ -177,7 +179,7 @@ public class FormatGenerator {
 		}
 	}
 
-	public void writeBxnez() throws UnLabeledException {
+	public void writeBxnez() throws UnLabeledException, UnIndividedListException {
 		checkedNullLabelTag = new boolean[tagId];
 		for (int i = 0; i < this.capturedList.length; i++) {
 			if (this.capturedList[i] == null) {
@@ -458,7 +460,7 @@ public class FormatGenerator {
 				System.arraycopy(capturedList, 0, newList, 0, capturedList.length);
 				capturedList = newList;
 			}
-			capturedList[capturedId] = new Captured(elementsStack[stackTop--]);
+			capturedList[capturedId] = new Captured(elementsStack[stackTop--], calledById);
 			if (stackStates[stackTop].left != null && !stackStates[stackTop].inOptional) {
 				Elements[] branch = { new Elements(), new Elements() };
 				branch[0].addElement(new CapturedElement(capturedId));
@@ -491,13 +493,13 @@ public class FormatGenerator {
 
 		@Override
 		public Object visitSymbolAction(SymbolAction e, Object a) {
-			// TODO Auto-generated method stub
+			visit(e.inner);
 			return null;
 		}
 
 		@Override
 		public Object visitSymbolPredicate(SymbolPredicate e, Object a) {
-			// TODO Auto-generated method stub
+			visit(e.inner);
 			return null;
 		}
 
@@ -570,12 +572,14 @@ public class FormatGenerator {
 		Elements left;
 		Elements right;
 		int size = 0;
+		int calledBy;
 
-		public Captured(Elements elements) {
+		public Captured(Elements elements, int calledBy) {
 			this.elements = elements;
+			this.calledBy = calledBy;
 		}
 
-		public void makeFormatSet(int capturedId) throws UnTagedException {
+		public void makeFormatSet(int capturedId) throws UnTaggedException {
 			while (true) {
 				checkedProduction = new boolean[productionId];
 				int tag = elements.searchTag();
@@ -590,13 +594,16 @@ public class FormatGenerator {
 					checkedProduction = new boolean[productionId];
 					formatSet[size++].link = elements.searchLink();
 				} else {
+					if (formatSet[0] == null) {
+						throw new UnTaggedException("UNTAGGED BLOCK EXISTS IN " + productionNameList[calledBy]);
+					}
 					break;
 				}
 			}
 		}
 
 		// TODO fix verbose
-		public void writeFormat(int capturedId) throws UnLabeledException {
+		public void writeFormat(int capturedId) throws UnLabeledException, UnIndividedListException {
 			for (int i = 0; i < size; i++) {
 				boolean needFormatEmpty = false;
 				// if (formatSet[i].link != null ||
@@ -664,7 +671,7 @@ public class FormatGenerator {
 			}
 		}
 
-		public String optionFix(Elements links, LabelSet labelSet, int tag) throws UnLabeledException {
+		public String optionFix(Elements links, LabelSet labelSet, int tag) throws UnLabeledException, UnIndividedListException {
 			if (links == null) {
 				return null;
 			}
@@ -728,7 +735,7 @@ public class FormatGenerator {
 			return -1;
 		}
 
-		public Elements searchLink() throws UnTagedException {
+		public Elements searchLink() throws UnTaggedException {
 			Elements links = null;
 			for (int i = 0; i < this.size; i++) {
 				Elements link = elementList[i].searchLink();
@@ -849,7 +856,7 @@ public class FormatGenerator {
 			return -1;
 		}
 
-		public Elements searchLink() throws UnTagedException {
+		public Elements searchLink() throws UnTaggedException {
 			return null;
 		}
 
@@ -857,7 +864,7 @@ public class FormatGenerator {
 			return null;
 		}
 
-		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException, UnIndividedListException {
 			assert true;
 			return null;
 		}
@@ -914,7 +921,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() throws UnTagedException {
+		public Elements searchLink() throws UnTaggedException {
 			nullCheck();
 			if (checkedProduction[id]) {
 				return null;
@@ -1004,13 +1011,13 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() throws UnTagedException {
+		public Elements searchLink() throws UnTaggedException {
 			if (linkedInner == null) {
 				boolean[] currentCheckedNonterminal = checkedProduction;
 				checkedProduction = new boolean[productionId];
 				linkedInner = inner.checkInner();
 				if (linkedInner == null) {
-					throw new UnTagedException("UNTAGGED BLOCK EXISTS IN THIS PRODUCTION" + inner);
+					throw new UnTaggedException("UNTAGGED BLOCK EXISTS IN " + productionNameList[calledBy] + " -> " + inner);
 					// System.out.println("CAUTION:UNTAGGED BLOCK EXISTS in " +
 					// this);
 					// linkedInner = new LinkedInner[1];
@@ -1064,7 +1071,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException, UnIndividedListException {
 			labelFix = mainId[labelSet.tagProgression % groupSize];
 			labelSet.tagProgression = labelSet.tagProgression / groupSize;
 			boolean[] needTag = new boolean[tagId];
@@ -1097,6 +1104,8 @@ public class FormatGenerator {
 			}
 			if (labelSet.label == null) {
 				labelSet.label = ret;
+			} else if (hasRepetition) {
+				throw new UnIndividedListException("UNINDIVIDED LIST EXISTS IN " + productionNameList[calledBy]);
 			} else {
 				labelSet.label += "," + ret;
 			}
@@ -1105,7 +1114,7 @@ public class FormatGenerator {
 
 		public String toLabel() throws UnLabeledException {
 			if (label == null) {
-				throw new UnLabeledException("UNLABELED LINKTREE EXISTS " + productionNameList[calledBy]);
+				throw new UnLabeledException("UNLABELED LINKTREE EXISTS IN" + productionNameList[calledBy]);
 				// return "$unlabeled";
 			} else {
 				return label.toString();
@@ -1125,7 +1134,7 @@ public class FormatGenerator {
 					ret += linkedInner[labelFix].after;
 				}
 			} else if (label == null) {
-				throw new UnLabeledException("UNLABELED LINKTREE EXISTS " + productionNameList[calledBy]);
+				throw new UnLabeledException("UNLABELED LINKTREE EXISTS IN " + productionNameList[calledBy]);
 				// if (!linkedInner[labelFix].before.equals("")) {
 				// ret += linkedInner[labelFix].before;
 				// }
@@ -1266,7 +1275,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() throws UnTagedException {
+		public Elements searchLink() throws UnTaggedException {
 			if (currentTagFixBranch == -1) {
 				for (int i = 0; i < branch.length; i++) {
 					Elements choicedLink = branch[i].searchLink();
@@ -1305,7 +1314,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException, UnIndividedListException {
 			boolean currentHasOnly = hasOnly;
 			if (linkRate == null) {
 				countOption(tag);
@@ -1398,7 +1407,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() throws UnTagedException {
+		public Elements searchLink() throws UnTaggedException {
 			Elements oneLink = inner.searchLink();
 			if (oneLink == null) {
 				return null;
@@ -1408,7 +1417,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException, UnIndividedListException {
 			if (links.size != 1) {
 				hasOnly = false;
 			}
@@ -1512,7 +1521,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() throws UnTagedException {
+		public Elements searchLink() throws UnTaggedException {
 			Elements zeroLink = inner.searchLink();
 			if (zeroLink == null) {
 				return null;
@@ -1522,7 +1531,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException, UnIndividedListException {
 			if (links.size != 1) {
 				hasOnly = false;
 			}
@@ -1636,7 +1645,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public Elements searchLink() throws UnTagedException {
+		public Elements searchLink() throws UnTaggedException {
 			Elements optionalLink = inner.searchLink();
 			if (hasTag) {
 				return optionalLink;
@@ -1649,7 +1658,7 @@ public class FormatGenerator {
 		}
 
 		@Override
-		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException {
+		public LabelSet optionFix(LabelSet labelSet, int tag) throws UnLabeledException, UnIndividedListException {
 			if (link.size != 1) {
 				hasOnly = false;
 			}
@@ -1734,7 +1743,7 @@ public class FormatGenerator {
 
 		public void join(LinkedInner target) {
 			if (target.id != -1) {
-				assert(id == -1);
+				assert (id == -1);
 				this.id = target.id;
 				this.before += target.before;
 				this.after = target.after;

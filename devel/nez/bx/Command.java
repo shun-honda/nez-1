@@ -53,7 +53,7 @@ public class Command extends nez.main.Command {
 				continue;
 			}
 			tw.writeTree(newNode);
-			new ASTEqualChecker().isEqual(node, newNode);
+			System.out.println(new ASTEqualChecker().isEqual(node, newNode));
 		}
 	}
 
