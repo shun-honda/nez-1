@@ -46,7 +46,14 @@ public class Command extends nez.main.Command {
 			builder.visit(formatNode);
 			Formatter formatter = new Formatter(builder.getContext());
 			String source = formatter.format(node);
-			System.out.println(source);
+			input = CommonSource.newStringSource(source);
+			Tree<?> newNode = parser.parse(input);
+			if (newNode == null) {
+				parser.showErrors();
+				continue;
+			}
+			tw.writeTree(newNode);
+			new ASTEqualChecker().isEqual(node, newNode);
 		}
 	}
 
