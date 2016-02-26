@@ -368,8 +368,11 @@ public class FormatGenerator {
 			return null;
 		}
 
+		// FIXME
 		@Override
 		public Object visitNot(Not e, Object a) {
+			Expression exp = e.get(0);
+			addElement(new NotElement());
 			return null;
 		}
 
@@ -877,6 +880,21 @@ public class FormatGenerator {
 
 		@Override
 		abstract public String toString();
+	}
+
+	// FIXME
+	class NotElement extends Element {
+
+		@Override
+		public String toString() {
+			return "NOT";
+		}
+
+		@Override
+		public String toFormat(int tag) {
+			return " ";
+		}
+
 	}
 
 	class NonTerminalElement extends Element {
