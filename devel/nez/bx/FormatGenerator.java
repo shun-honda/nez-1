@@ -887,6 +887,13 @@ public class FormatGenerator {
 		}
 
 		@Override
+		public LinkedInner[] checkInner() {
+			LinkedInner[] ret = { new LinkedInner() };
+			ret[0].before = " ";
+			return ret;
+		}
+
+		@Override
 		public String toFormat(int tag) {
 			return " ";
 		}
