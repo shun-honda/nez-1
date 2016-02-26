@@ -38,7 +38,7 @@ public class Command extends nez.main.Command {
 			input = CommonSource.newFileSource(gen.getOutputFileName());
 			Tree<?> formatNode = formatParser.parse(input);
 			if (formatNode == null) {
-				parser.showErrors();
+				formatParser.showErrors();
 				continue;
 			}
 			tw.writeTree(formatNode);
