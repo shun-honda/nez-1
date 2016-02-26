@@ -907,6 +907,7 @@ public class FormatGenerator {
 	class NonTerminalElement extends Element {
 		int id;
 		Elements elements;
+		boolean checked = false;
 
 		public NonTerminalElement(int id) {
 			this.id = id;
@@ -936,7 +937,12 @@ public class FormatGenerator {
 		public LinkedInner[] checkInner() {
 			nullCheck();
 			if (checkedProduction[id]) {
-				return null;
+				if (checked) {
+					return null;
+				}
+				checked = true;
+			} else {
+				checked = false;
 			}
 			checkedProduction[id] = true;
 			return elements.checkInner();
