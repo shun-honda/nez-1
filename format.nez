@@ -1,0 +1,36 @@
+/**
+ * format Grammar
+ *
+ * Authors:
+ *   Masanori Sato (https://github.com/masanori-10/)
+ */
+
+File                              = { ( _ $(Format) )* #Source } _ EOF
+_                                 = [ \n\r\t\u000B\u000C]*
+EOF                               = !.
+Format                            = { 'format' _ $name(Tag) '(' $param(Parameters) ')' _ '`' $body(Body) '`' #TagFormat }
+                                  / { 'format' _ $name(Name) '(' $param(Parameters) ')' _ '`' $body(Body) '`' #UserDefinedFormatter }
+Tag                               = '#' Name
+Name                              = { NAME #Name }
+NAME                              = [A-Za-z0-9$][A-Za-z0-9_$]*
+Parameters                        = { $(Parameter) ( _ ',' _ $(Parameter) )* #List }
+                                  / { '' #List }
+Parameter                         = ListParameter
+                                  / TagParameter
+                                  / { '[]' #EmptyListParam }
+                                  / Name
+TagParameter                      = { $label(Name) _ $tag(Tags) #TagParam }
+ListParameter                     = { $label(ListParameterValue) _ ':' _ $list(Name) #ListParam }
+ListParameterValue                = TagParameter / Name
+Tags                              = { $(Tag) ( _ '|' _ $(Tag) )* #List }
+Body                              = { ($(Inner))* #List }
+Inner                             = '${' _ Expression _ '}'
+                                  / Text
+Arguments                         = { $(Argument) ( _ ',' _ $(Argument) )* #List }
+                                  / { '' #List }
+Argument                          = Expression
+Text                              = { (!('`' / '${') .)* #Text }
+Expression                        = { $name(Name) '(' $list(Arguments) ')' #Apply }
+                                  / { '$' $name(Name) #SystemVariable }
+                                  / { $name(Name) ('.' $expr(Expression)) #Field }
+                                  / Name
