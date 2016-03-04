@@ -7,6 +7,7 @@ import nez.ast.Tree;
 
 public class Formatter extends AbstractFormatter {
 	FormatterContext context;
+	boolean demo = true;
 
 	public Formatter(FormatterContext context) {
 		this.context = context;
@@ -22,6 +23,9 @@ public class Formatter extends AbstractFormatter {
 					return formatter;
 				}
 			}
+		}
+		if (demo) {
+			return null;
 		}
 		throw new RuntimeException("label \"" + node.getTag() + "\" is not found");
 	}
@@ -213,6 +217,9 @@ public class Formatter extends AbstractFormatter {
 		TagFormat formatter = findTagFormatter(targetNode);
 		if (formatter != null) {
 			return formatter.format(this, targetNode);
+		}
+		if (demo) {
+			return targetNode.toString();
 		}
 		throw new RuntimeException("tag formatter \"" + targetNode.getTag() + "\" is not found");
 	}
